@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmolLM2 · On-Device AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="scanlines" aria-hidden="true"></div>
+  <div id="app">
+
+    <!-- ── HEADER ── -->
+    <header id="header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-hex" aria-hidden="true">⬡</span>
+          <span class="logo-text">SmolLM2</span>
+        </div>
+        <div class="header-badges" id="header-badges">
+          <span class="badge badge-size" title="Model size on disk">360MB</span>
+          <span class="badge badge-status" id="status-badge">
+            <span class="status-indicator" id="status-indicator" aria-hidden="true"></span>
+            <span id="status-text">Initializing…</span>
+          </span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="tps-wrap" id="tps-wrap" title="Tokens per second">
+          <span id="tps-value">—</span><span class="tps-unit">tok/s</span>
+        </div>
+        <!-- icon-only badges for very small screens -->
+        <div class="badge-icons" id="badge-icons">
+          <span class="badge-icon badge-icon-size" title="360MB">360</span>
+          <span class="badge-icon badge-icon-status" id="status-icon" title="Status">●</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── PROGRESS BAR ── -->
+    <div id="progress-container" class="hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="progress-fill"></div>
+      <div id="progress-label">Preparing…</div>
+    </div>
+
+    <!-- ── TEMPLATE CHIP BAR ── -->
+    <nav id="template-bar" aria-label="Prompt templates">
+      <button class="chip" data-prompt="Explain quantum entanglement in simple terms — as if I've never studied physics.">
+        <span class="chip-icon">◈</span> Explain a concept
+      </button>
+      <button class="chip" data-prompt="Write a short, vivid poem about the feeling of rain on a summer night.">
+        <span class="chip-icon">◈</span> Write a poem
+      </button>
+      <button class="chip" data-prompt="Summarise the core ideas of stoicism in five bullet points.">
+        <span class="chip-icon">◈</span> Summarise ideas
+      </button>
+      <button class="chip" data-prompt="Give me five creative weekend project ideas for someone who likes building things with their hands.">
+        <span class="chip-icon">◈</span> Brainstorm ideas
+      </button>
+      <button class="chip" data-prompt="Suggest three healthy, quick breakfast recipes that take under 10 minutes to make.">
+        <span class="chip-icon">◈</span> Recipe ideas
+      </button>
+      <button class="chip" data-prompt="Debug this Python snippet and explain the fix:\n\nfor i in range(10)\n    print(i)">
+        <span class="chip-icon">◈</span> Debug code
+      </button>
+      <button class="chip" data-prompt="What are some good habits to build focus and reduce mental fatigue during deep work sessions?">
+        <span class="chip-icon">◈</span> Productivity tips
+      </button>
+    </nav>
+
+    <!-- ── CHAT AREA ── -->
+    <main id="chat-area" aria-live="polite" aria-label="Conversation">
+      <div id="messages-list"></div>
+
+      <div id="empty-state" aria-hidden="false">
+        <div class="empty-hex" aria-hidden="true">⬡</div>
+        <p class="empty-headline">Runs entirely in your browser.</p>
+        <p class="empty-sub">No server. No data leaves your device.<br />After the first download, works fully offline.</p>
+      </div>
+    </main>
+
+    <!-- ── INPUT AREA ── -->
+    <div id="input-area">
+      <div id="input-inner">
+        <textarea
+          id="user-input"
+          placeholder="Send a message…"
+          rows="1"
+          aria-label="Message input"
+          autocomplete="off"
+          spellcheck="true"
+          disabled
+        ></textarea>
+        <div class="input-buttons" role="group" aria-label="Message actions">
+          <button id="clear-btn" class="btn-clear" title="Clear conversation" disabled>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Clear</span>
+          </button>
+          <button id="send-btn" class="btn-send" disabled aria-label="Send message">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 12V2M2 7l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Send</span>
+          </button>
+        </div>
+      </div>
+      <div id="input-hint">SmolLM2-360M · Runs locally · <span id="hint-status">Loading model…</span></div>
+    </div>
+
+  </div><!-- /#app -->
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
