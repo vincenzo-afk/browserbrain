@@ -12,6 +12,12 @@ const MAX_TOKENS  = 512;
 const TEMPERATURE = 0.7;
 const TOP_P       = 0.95;
 
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+function isSecureContext() {
+  return window.isSecureContext || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+
 // ─── STATE ──────────────────────────────────────────────────────────────────
 let engine        = null;
 let isReady       = false;
@@ -211,6 +217,28 @@ async function initModel() {
   elHintStatus.textContent = "Loading model…";
   setInputEnabled(false);
 
+  // 1. Check Secure Context (Required for Cache API & WebGPU)
+  if (!isSecureContext()) {
+    const msg = "Secure Context Required: WebGPU and Cache API only work over HTTPS or localhost. Please serve this page from a web server.";
+    console.error(msg);
+    setStatus("error", "Security Error");
+    elHintStatus.textContent = "HTTPS Required";
+    createMessageEl("assistant", msg, "error");
+    hideEmptyState();
+    return;
+  }
+
+  // 2. Check WebGPU Support
+  if (!navigator.gpu) {
+    const msg = "WebGPU not supported: Please use a modern browser (Chrome 113+, Edge 113+) and ensure WebGPU is enabled in flags if necessary.";
+    console.error(msg);
+    setStatus("error", "WebGPU Missing");
+    elHintStatus.textContent = "WebGPU not found";
+    createMessageEl("assistant", msg, "error");
+    hideEmptyState();
+    return;
+  }
+
   let firstProgressSeen = false;
 
   const initProgressCallback = (report) => {
@@ -246,6 +274,17 @@ async function initModel() {
       logLevel: "SILENT",
     });
 
+    // Handle Device Loss (Common cause of 'mapAsync' errors)
+    if (engine.device) {
+      engine.device.lost.then((info) => {
+        console.error(`WebGPU device was lost: ${info.message}`);
+        isReady = false;
+        setStatus("error", "GPU Device Lost");
+        elHintStatus.textContent = "GPU Crashed - Please refresh";
+        createMessageEl("assistant", "WebGPU device lost: " + info.message + ". Please refresh the page.", "error");
+      });
+    }
+
     isReady = true;
     setStatus("ready", "✓ Offline");
     elHintStatus.textContent = "Ready · Model cached";
@@ -257,13 +296,19 @@ async function initModel() {
 
   } catch (err) {
     console.error("[SmolLM2] Init error:", err);
+    let errMsg = err.message || err;
+    
+    if (errMsg.includes("Cache") || errMsg.includes("network error")) {
+      errMsg = "Network/Cache Error: Failed to download model files. This often happens if the connection is unstable or if the site is not served via HTTPS.";
+    }
+
     setStatus("error", "Error loading model");
     elHintStatus.textContent = "Failed to load model";
     hideProgress();
 
     // Show error in chat
     createMessageEl("assistant",
-      `Failed to load model: ${err.message || err}\n\nPlease check:\n• You're using Chrome 113+ with WebGPU enabled\n• You have enough RAM (~700 MB free)\n• You're connected for the first download`,
+      `Failed to load model: ${errMsg}\n\nPlease check:\n• You're using Chrome 113+ with WebGPU enabled\n• You're served via HTTPS or localhost\n• You have enough RAM (~700 MB free)\n• Your connection is stable`,
       "error"
     );
     hideEmptyState();
