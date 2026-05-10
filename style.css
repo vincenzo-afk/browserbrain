@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────
-   SmolLM2 Chat · Phosphor Terminal Aesthetic
+   BrowserBrain · Phosphor Terminal Aesthetic + Web Search
    ───────────────────────────────────────────────────────── */
 
 /* ── DESIGN TOKENS ── */
@@ -17,6 +17,9 @@
   --green:         #22c55e;
   --green-glow:    rgba(34, 197, 94, 0.15);
   --red:           #ef4444;
+  --blue:          #60a5fa;
+  --blue-glow:     rgba(96, 165, 250, 0.12);
+  --cyan:          #22d3ee;
 
   --text:          #ddd9d0;
   --text-dim:      #7a7870;
@@ -248,7 +251,6 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Icon-only badges (hidden by default, shown on very small screens) */
 .badge-icons { display: none; gap: 6px; align-items: center; }
 
 .badge-icon {
@@ -279,9 +281,7 @@ html, body {
 
 #progress-fill {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; top: 0; bottom: 0;
   width: 0%;
   background: linear-gradient(90deg, var(--amber-dim), var(--amber));
   transition: width 300ms ease;
@@ -351,10 +351,7 @@ html, body {
   pointer-events: none;
 }
 
-.chip-icon {
-  font-size: 9px;
-  opacity: 0.6;
-}
+.chip-icon { font-size: 9px; opacity: 0.6; }
 
 /* ── CHAT AREA ── */
 #chat-area {
@@ -369,10 +366,7 @@ html, body {
 
 #chat-area::-webkit-scrollbar { width: 4px; }
 #chat-area::-webkit-scrollbar-track { background: transparent; }
-#chat-area::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
+#chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* ── EMPTY STATE ── */
 #empty-state {
@@ -469,10 +463,29 @@ html, body {
   text-transform: uppercase;
   margin-bottom: 4px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .message.user .message-role   { color: var(--amber-dim); }
 .message.assistant .message-role { color: var(--text-muted); }
+
+/* ── WEB BADGE on assistant messages ── */
+.web-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--blue-glow);
+  border: 1px solid rgba(96,165,250,0.3);
+  color: var(--blue);
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  text-transform: uppercase;
+}
 
 .message-text {
   color: var(--text);
@@ -485,7 +498,6 @@ html, body {
 
 .message.user .message-text { color: #e8e6de; }
 
-/* Code blocks inside assistant messages */
 .message-text code {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -496,7 +508,6 @@ html, body {
   color: var(--amber);
 }
 
-/* Cursor blink during generation */
 .message.streaming .message-text::after {
   content: '▊';
   color: var(--amber);
@@ -510,10 +521,7 @@ html, body {
   50%       { opacity: 0; }
 }
 
-/* Thinking/loading state */
-.message.loading .message-text {
-  color: var(--text-muted);
-}
+.message.loading .message-text { color: var(--text-muted); }
 
 .message.loading .message-text::after {
   content: '⠋';
@@ -533,12 +541,101 @@ html, body {
   87% { content: '⠧'; }
 }
 
-/* Error state */
 .message.error .message-text { color: var(--red); }
 .message.error .message-avatar {
   border-color: rgba(239,68,68,0.4);
   background: rgba(239,68,68,0.06);
   color: var(--red);
+}
+
+/* ── SYSTEM MESSAGE (search status) ── */
+.message.system {
+  display: block;
+  text-align: center;
+  padding: 6px 0;
+  border-bottom: none;
+}
+
+.message.system .message-text {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.message.system.searching .message-text {
+  color: var(--blue);
+  animation: pulse-text 1.2s ease-in-out infinite;
+}
+
+.message.system.success .message-text { color: var(--green); }
+.message.system.warn    .message-text { color: var(--amber); }
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── WEATHER CARD ── */
+.weather-card {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: var(--surface-raised);
+  border: 1px solid rgba(96,165,250,0.25);
+  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.weather-card .weather-title {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+}
+
+.weather-card .wrow-label { color: var(--text-muted); }
+.weather-card .wrow-val   { color: var(--text); font-weight: 500; }
+
+/* ── HACKER NEWS CARDS ── */
+.hn-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hn-item {
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  transition: border-color var(--transition);
+}
+
+.hn-item:hover { border-color: var(--amber-dim); }
+
+.hn-item a {
+  color: var(--amber);
+  text-decoration: none;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.hn-item a:hover { text-decoration: underline; }
+
+.hn-item .hn-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
 }
 
 /* ── INPUT AREA ── */
@@ -592,7 +689,7 @@ html, body {
   align-items: flex-end;
 }
 
-.btn-clear, .btn-send {
+.btn-clear, .btn-send, .btn-web {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -607,6 +704,26 @@ html, body {
   white-space: nowrap;
   height: 30px;
 }
+
+/* ── WEB TOGGLE BUTTON ── */
+.btn-web {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn-web.is-on {
+  background: var(--blue-glow);
+  border-color: rgba(96,165,250,0.4);
+  color: var(--blue);
+}
+
+.btn-web:hover:not(:disabled) {
+  border-color: rgba(96,165,250,0.5);
+  color: var(--blue);
+}
+
+.btn-web .web-icon { font-size: 12px; }
 
 .btn-clear {
   background: transparent;
@@ -633,7 +750,7 @@ html, body {
   box-shadow: 0 0 12px rgba(245,158,11,0.35);
 }
 
-.btn-clear:disabled, .btn-send:disabled {
+.btn-clear:disabled, .btn-send:disabled, .btn-web:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -650,6 +767,9 @@ html, body {
 }
 
 #hint-status { color: var(--amber-dim); }
+
+#hint-status.is-searching { color: var(--blue); }
+#hint-status.is-web-done  { color: var(--cyan); }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -674,53 +794,31 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────────────────
-   RESPONSIVE BREAKPOINTS
+   RESPONSIVE
    ───────────────────────────────────────────────────────── */
 
-/* ── TABLET (≤ 860px) - just remove outer border ── */
 @media (max-width: 860px) {
-  #app {
-    border-left: none;
-    border-right: none;
-  }
+  #app { border-left: none; border-right: none; }
 }
 
-/* ── MOBILE (≤ 600px) ── */
 @media (max-width: 600px) {
-  :root {
-    --header-h: 48px;
-  }
+  :root { --header-h: 48px; }
 
   html, body { font-size: 13px; }
 
-  /* Header: logo only, badges hidden, show icon row instead */
   .header-badges { display: none; }
   .badge-icons   { display: flex; }
 
   .logo-text { font-size: 12px; }
   .logo-hex  { font-size: 16px; }
 
-  /* tok/s stays but smaller */
-  .tps-wrap {
-    min-width: 62px;
-    padding: 3px 7px;
-  }
+  .tps-wrap { min-width: 62px; padding: 3px 7px; }
   #tps-value { font-size: 12px; min-width: 28px; }
   .tps-unit  { font-size: 8.5px; }
 
-  /* Template bar: horizontal scroll, no wrap (already set, just confirm) */
-  #template-bar {
-    padding: 6px 10px;
-    gap: 5px;
-    /* overflow-x: auto and flex-wrap: nowrap already set */
-  }
+  #template-bar { padding: 6px 10px; gap: 5px; }
+  .chip { padding: 4px 9px; font-size: 10.5px; }
 
-  .chip {
-    padding: 4px 9px;
-    font-size: 10.5px;
-  }
-
-  /* Input: textarea on top, buttons row below */
   #input-area { padding: 8px 10px 10px; }
 
   #input-inner {
@@ -732,24 +830,19 @@ html, body {
 
   #user-input { min-height: 52px; }
 
-  .input-buttons {
-    align-self: flex-end;
-    gap: 6px;
-  }
+  .input-buttons { align-self: flex-end; gap: 6px; }
 
-  .btn-clear, .btn-send {
+  .btn-clear, .btn-send, .btn-web {
     height: 28px;
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-size: 10.5px;
   }
 
   #input-hint { font-size: 9px; }
 
-  /* Messages slightly tighter */
   #messages-list { padding: 0 10px; }
 
   .message { gap: 9px; padding: 10px 0; }
-
   .message-text { font-size: 13px; }
 
   .empty-hex { font-size: 36px; }
@@ -757,13 +850,12 @@ html, body {
   .empty-sub { font-size: 10.5px; }
 }
 
-/* ── VERY SMALL (≤ 380px) ── */
 @media (max-width: 380px) {
   .tps-wrap { display: none; }
 
-  .btn-clear span, .btn-send span { display: none; }
-  .btn-clear, .btn-send {
-    width: 32px;
+  .btn-clear span, .btn-send span, .btn-web span { display: none; }
+  .btn-clear, .btn-send, .btn-web {
+    width: 30px;
     justify-content: center;
     padding: 0;
   }

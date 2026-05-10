@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmolLM2 · On-Device AI</title>
+  <title>BrowserBrain · On-Device AI + Web Search</title>
+  <meta name="description" content="SmolLM2 360M running fully in your browser with free web search, weather, and live news — no server, no API key." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -18,7 +19,7 @@
       <div class="header-left">
         <div class="logo">
           <span class="logo-hex" aria-hidden="true">⬡</span>
-          <span class="logo-text">SmolLM2</span>
+          <span class="logo-text">BrowserBrain</span>
         </div>
         <div class="header-badges" id="header-badges">
           <span class="badge badge-size" title="Model size on disk">360MB</span>
@@ -48,6 +49,15 @@
 
     <!-- ── TEMPLATE CHIP BAR ── -->
     <nav id="template-bar" aria-label="Prompt templates">
+      <button class="chip" data-prompt="What's the latest tech news today?">
+        <span class="chip-icon">◈</span> Tech news
+      </button>
+      <button class="chip" data-prompt="What is the weather in Chennai today?">
+        <span class="chip-icon">◈</span> Weather
+      </button>
+      <button class="chip" data-prompt="What is happening in the world right now?">
+        <span class="chip-icon">◈</span> World news
+      </button>
       <button class="chip" data-prompt="Explain quantum entanglement in simple terms — as if I've never studied physics.">
         <span class="chip-icon">◈</span> Explain a concept
       </button>
@@ -57,17 +67,8 @@
       <button class="chip" data-prompt="Summarise the core ideas of stoicism in five bullet points.">
         <span class="chip-icon">◈</span> Summarise ideas
       </button>
-      <button class="chip" data-prompt="Give me five creative weekend project ideas for someone who likes building things with their hands.">
-        <span class="chip-icon">◈</span> Brainstorm ideas
-      </button>
-      <button class="chip" data-prompt="Suggest three healthy, quick breakfast recipes that take under 10 minutes to make.">
-        <span class="chip-icon">◈</span> Recipe ideas
-      </button>
       <button class="chip" data-prompt="Debug this Python snippet and explain the fix:\n\nfor i in range(10)\n    print(i)">
         <span class="chip-icon">◈</span> Debug code
-      </button>
-      <button class="chip" data-prompt="What are some good habits to build focus and reduce mental fatigue during deep work sessions?">
-        <span class="chip-icon">◈</span> Productivity tips
       </button>
     </nav>
 
@@ -78,7 +79,7 @@
       <div id="empty-state" aria-hidden="false">
         <div class="empty-hex" aria-hidden="true">⬡</div>
         <p class="empty-headline">Runs entirely in your browser.</p>
-        <p class="empty-sub">No server. No data leaves your device.<br />After the first download, works fully offline.</p>
+        <p class="empty-sub">No server. No data leaves your device.<br />Web search powered by free public APIs — no keys needed.</p>
       </div>
     </main>
 
@@ -87,7 +88,7 @@
       <div id="input-inner">
         <textarea
           id="user-input"
-          placeholder="Send a message…"
+          placeholder="Ask anything… web search auto-activates for live queries"
           rows="1"
           aria-label="Message input"
           autocomplete="off"
@@ -95,6 +96,11 @@
           disabled
         ></textarea>
         <div class="input-buttons" role="group" aria-label="Message actions">
+          <!-- Web Search Toggle -->
+          <button id="web-toggle" class="btn-web is-on" title="Web search enabled — click to disable" aria-pressed="true">
+            <span class="web-icon">🌐</span>
+            <span>Web</span>
+          </button>
           <button id="clear-btn" class="btn-clear" title="Clear conversation" disabled>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -109,7 +115,7 @@
           </button>
         </div>
       </div>
-      <div id="input-hint">SmolLM2-360M · Runs locally · <span id="hint-status">Loading model…</span></div>
+      <div id="input-hint">BrowserBrain · SmolLM2-360M · <span id="hint-status">Loading model…</span></div>
     </div>
 
   </div><!-- /#app -->
