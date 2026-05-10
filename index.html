@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BrowserBrain · On-Device AI + Web Search</title>
-  <meta name="description" content="SmolLM2 360M running fully in your browser with free web search, weather, and live news — no server, no API key." />
+  <title>Vanta · On-Device AI + Web Search + RAG</title>
+  <meta name="description" content="Vanta — Qwen2.5 1.5B running in your browser with free web search and local RAG knowledge base. No server, no API key." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -19,23 +19,30 @@
       <div class="header-left">
         <div class="logo">
           <span class="logo-hex" aria-hidden="true">⬡</span>
-          <span class="logo-text">BrowserBrain</span>
+          <span class="logo-text">Vanta</span>
         </div>
         <div class="header-badges" id="header-badges">
-          <span class="badge badge-size" title="Model size on disk">360MB</span>
+          <span class="badge badge-size" title="Model size on disk">1GB</span>
           <span class="badge badge-status" id="status-badge">
             <span class="status-indicator" id="status-indicator" aria-hidden="true"></span>
             <span id="status-text">Initializing…</span>
           </span>
+          <span class="badge badge-embedder" id="embedder-badge" title="RAG embedding model status">
+            <span class="status-indicator" id="emb-indicator" aria-hidden="true"></span>
+            <span id="emb-text">RAG…</span>
+          </span>
         </div>
       </div>
       <div class="header-right">
+        <!-- KB Toggle -->
+        <button id="kb-toggle" class="btn-kb" title="Open Knowledge Base panel" aria-expanded="false">
+          📚 KB <span id="kb-count" class="kb-count-badge">(0)</span>
+        </button>
         <div class="tps-wrap" id="tps-wrap" title="Tokens per second">
           <span id="tps-value">—</span><span class="tps-unit">tok/s</span>
         </div>
-        <!-- icon-only badges for very small screens -->
         <div class="badge-icons" id="badge-icons">
-          <span class="badge-icon badge-icon-size" title="360MB">360</span>
+          <span class="badge-icon badge-icon-size" title="1GB">1G</span>
           <span class="badge-icon badge-icon-status" id="status-icon" title="Status">●</span>
         </div>
       </div>
@@ -55,31 +62,30 @@
       <button class="chip" data-prompt="What is the weather in Chennai today?">
         <span class="chip-icon">◈</span> Weather
       </button>
-      <button class="chip" data-prompt="What is happening in the world right now?">
-        <span class="chip-icon">◈</span> World news
+      <button class="chip" data-prompt="Explain quantum entanglement step by step.">
+        <span class="chip-icon">◈</span> Explain concept
       </button>
-      <button class="chip" data-prompt="Explain quantum entanglement in simple terms — as if I've never studied physics.">
-        <span class="chip-icon">◈</span> Explain a concept
+      <button class="chip" data-prompt="Compare REST vs GraphQL with bullet points.">
+        <span class="chip-icon">◈</span> Compare
       </button>
-      <button class="chip" data-prompt="Write a short, vivid poem about the feeling of rain on a summer night.">
-        <span class="chip-icon">◈</span> Write a poem
+      <button class="chip" data-prompt="Write a Python quicksort then explain the output.">
+        <span class="chip-icon">◈</span> Write code
       </button>
       <button class="chip" data-prompt="Summarise the core ideas of stoicism in five bullet points.">
-        <span class="chip-icon">◈</span> Summarise ideas
+        <span class="chip-icon">◈</span> Summarise
       </button>
-      <button class="chip" data-prompt="Debug this Python snippet and explain the fix:\n\nfor i in range(10)\n    print(i)">
-        <span class="chip-icon">◈</span> Debug code
+      <button class="chip" data-prompt="What is happening in the world right now?">
+        <span class="chip-icon">◈</span> World news
       </button>
     </nav>
 
     <!-- ── CHAT AREA ── -->
     <main id="chat-area" aria-live="polite" aria-label="Conversation">
       <div id="messages-list"></div>
-
       <div id="empty-state" aria-hidden="false">
         <div class="empty-hex" aria-hidden="true">⬡</div>
-        <p class="empty-headline">Runs entirely in your browser.</p>
-        <p class="empty-sub">No server. No data leaves your device.<br />Web search powered by free public APIs — no keys needed.</p>
+        <p class="empty-headline">Vanta · On-Device AI</p>
+        <p class="empty-sub">Qwen2.5 1.5B · No server · No data leaves your device.<br />Web search + RAG knowledge base built in.</p>
       </div>
     </main>
 
@@ -96,10 +102,8 @@
           disabled
         ></textarea>
         <div class="input-buttons" role="group" aria-label="Message actions">
-          <!-- Web Search Toggle -->
-          <button id="web-toggle" class="btn-web is-on" title="Web search enabled — click to disable" aria-pressed="true">
-            <span class="web-icon">🌐</span>
-            <span>Web</span>
+          <button id="web-toggle" class="btn-web is-on" title="Web search enabled" aria-pressed="true">
+            <span class="web-icon">🌐</span><span>Web</span>
           </button>
           <button id="clear-btn" class="btn-clear" title="Clear conversation" disabled>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -115,11 +119,32 @@
           </button>
         </div>
       </div>
-      <div id="input-hint">BrowserBrain · SmolLM2-360M · <span id="hint-status">Loading model…</span></div>
+      <div id="input-hint">Vanta · Qwen2.5-1.5B · <span id="hint-status">Loading model…</span></div>
     </div>
 
-  </div><!-- /#app -->
+    <!-- ── KNOWLEDGE BASE PANEL ── -->
+    <aside id="kb-panel" class="kb-panel" aria-label="Knowledge Base" aria-hidden="true">
+      <div class="kb-panel-header">
+        <span class="kb-panel-title">📚 Knowledge Base</span>
+        <button id="kb-close" class="kb-close-btn" title="Close">✕</button>
+      </div>
+      <div class="kb-panel-body">
+        <textarea
+          id="kb-input"
+          class="kb-textarea"
+          placeholder="Paste any text, documentation, code, notes here…"
+          rows="6"
+        ></textarea>
+        <button id="kb-add-btn" class="btn-kb-add">Add to Knowledge Base</button>
+        <div class="kb-status" id="kb-status"></div>
+        <div class="kb-chunks-label" id="kb-chunks-label"></div>
+        <div id="kb-list" class="kb-list"></div>
+        <button id="kb-clear-all" class="btn-kb-clear-all" style="display:none">🗑 Clear all chunks</button>
+      </div>
+    </aside>
+    <div id="kb-overlay" class="kb-overlay" aria-hidden="true"></div>
 
+  </div><!-- /#app -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
