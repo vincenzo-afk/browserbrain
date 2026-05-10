@@ -3,7 +3,7 @@ import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@xenova/transformers
 env.allowLocalModels = false;
 
 // ── CONFIG ──
-const MODEL_ID = "Dolphin3.0-Qwen2.5-1.5B-q4f16_1-MLC";
+const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
 const SEARCH_TIMEOUT = 8000;
 const BASE_SYSTEM = `You are Vanta, an expert AI assistant that reasons carefully.
 For any question:
@@ -373,7 +373,7 @@ async function initEmbedder(){
 
 // ── INIT MODEL ──
 async function initModel(){
-  setStatus("init","Initializing…");elHintStatus.textContent="Loading model…";setInputEnabled(false);
+  setStatus("init","Initializing…");elHintStatus.textContent="Loading…";setInputEnabled(false);
   if(!isSecureCtx()){createMessageEl("assistant","⚠️ Requires HTTPS or localhost (not file://).","error");hideEmptyState();setStatus("error","Security");return;}
   if(!navigator.gpu){createMessageEl("assistant","⚠️ WebGPU not found. Use Chrome 113+ with WebGPU enabled.","error");hideEmptyState();setStatus("error","No WebGPU");return;}
   let fp=false;
@@ -386,12 +386,12 @@ async function initModel(){
   try{
     engine=await webllm.CreateMLCEngine(MODEL_ID,{initProgressCallback,logLevel:"SILENT"});
     if(engine.device)engine.device.lost.then(i=>{isReady=false;setStatus("error","GPU Lost");createMessageEl("assistant","GPU lost: "+i.message+". Refresh.","error");});
-    isReady=true;setStatus("ready","✓ Ready");elHintStatus.textContent="Ready · Qwen2.5-1.5B";setInputEnabled(true);hideProgress();elUserInput.focus();updateMemoryBadge();
+    isReady=true;setStatus("ready","✓ Ready");elHintStatus.textContent="Ready";setInputEnabled(true);hideProgress();elUserInput.focus();updateMemoryBadge();
   }catch(err){
     let msg=err.message||String(err);
     if(msg.includes("Cache")||msg.includes("network"))msg="Network/Cache error. Use HTTPS or localhost.";
     setStatus("error","Load failed");elHintStatus.textContent="Failed";hideProgress();
-    createMessageEl("assistant",`Failed: ${msg}\n\n• Chrome 113+ required\n• Serve via HTTPS/localhost\n• ~1GB RAM needed`,"error");hideEmptyState();
+    createMessageEl("assistant",`Failed to initialize: ${msg}\n\n• Use Chrome 113+ with WebGPU enabled\n• Serve via HTTPS or localhost (not file://)\n• Ensure enough free RAM is available`,"error");hideEmptyState();
   }
 }
 
@@ -491,7 +491,7 @@ async function generate(userText){
     else{aWrap.classList.remove("streaming","loading");aWrap.classList.add("error");aTextEl.textContent=`Error: ${err.message||err}`;}
   }finally{
     setGeneratingUI(false);setInputEnabled(true);
-    elHintStatus.textContent="Ready · Qwen2.5-1.5B";elHintStatus.className="";
+    elHintStatus.textContent="Ready";elHintStatus.className="";
     elUserInput.focus();scrollToBottom();
   }
 }
@@ -502,7 +502,7 @@ function handleClear(){
   if(isGenerating)return;conversationHistory=[];elMessagesList.innerHTML="";
   elEmptyState.classList.remove("hidden");elEmptyState.setAttribute("aria-hidden","false");
   resetTps();elUserInput.value="";autoResize(elUserInput);elUserInput.focus();
-  elHintStatus.textContent="Ready · Qwen2.5-1.5B";elHintStatus.className="";
+  elHintStatus.textContent="Ready";elHintStatus.className="";
 }
 
 // ── EVENTS ──
