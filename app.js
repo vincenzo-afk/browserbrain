@@ -17,10 +17,26 @@ Always show your reasoning inside <think>your reasoning here</think> before your
 
 const PERSONAS = {
   default: BASE_SYSTEM,
-  dev: "You are Vanta in developer mode. Be terse, code-first, no fluff. Always show working code. Use technical terms freely. Show <think> reasoning before answering.",
-  teacher: "You are Vanta in teacher mode. Explain everything step by step as if teaching a beginner. Use analogies. Be patient and very thorough. Show <think> reasoning before answering.",
-  research: "You are Vanta in research mode. Structure all answers with headers, cite your reasoning, use bullet points, be academic and comprehensive. Show <think> reasoning before answering.",
-  creative: "You are Vanta in creative mode. Be imaginative, think outside the box, use vivid language and unexpected angles. Show <think> reasoning before answering."
+  dev: `You are Vanta, an expert coding assistant. Rules:
+- Be concise and code-first. No filler words.
+- Always provide working, runnable code with brief explanations.
+- Use technical terminology freely.
+- Show <think>your reasoning</think> then give the answer directly.`,
+  teacher: `You are Vanta, a patient and skilled teacher. Rules:
+- Explain every concept step-by-step from first principles.
+- Use simple language, real-world analogies, and concrete examples.
+- Check understanding with follow-up hints.
+- Show <think>your reasoning</think> then give the answer directly.`,
+  research: `You are Vanta, an academic research assistant. Rules:
+- Structure every answer with clear headings and bullet points.
+- Cite reasoning explicitly. Be thorough and precise.
+- Never truncate. Cover all angles.
+- Show <think>your reasoning</think> then give the answer directly.`,
+  creative: `You are Vanta, a creative thinking partner. Rules:
+- Use vivid, expressive language. Explore unexpected angles.
+- Be imaginative and bold. Think outside the box.
+- Make responses engaging and memorable.
+- Show <think>your reasoning</think> then give the answer directly.`
 };
 
 // ── SETTINGS STATE ──
@@ -252,23 +268,21 @@ function createMessageEl(role,text,state="done",badges=[]){
   badges.forEach(b=>{const s=document.createElement("span");s.className=b.cls;s.textContent=b.text;roleDiv.appendChild(s);});
   const textEl=document.createElement("div");textEl.className="message-text";textEl.textContent=text;
   body.appendChild(roleDiv);body.appendChild(textEl);
-  // Action bar (shown on hover, assistant messages only)
-  if(role==="assistant"&&state==="done"||state==="loading"){
+  // Action bar — only on fully-rendered assistant messages
+  if(role==="assistant" && state==="done"){
     const actions=document.createElement("div");actions.className="msg-actions";
-    // Copy button
     const copyBtn=document.createElement("button");copyBtn.className="msg-action-btn";copyBtn.textContent="📋 Copy";
     copyBtn.addEventListener("click",()=>{
-      const content=textEl.textContent||textEl.innerText||"";
-      navigator.clipboard.writeText(content).then(()=>{copyBtn.textContent="✓ Copied";copyBtn.classList.add("success");setTimeout(()=>{copyBtn.textContent="📋 Copy";copyBtn.classList.remove("success");},2000);});
+      navigator.clipboard.writeText(textEl.textContent||"").then(()=>{
+        copyBtn.textContent="✓ Copied";copyBtn.classList.add("success");
+        setTimeout(()=>{copyBtn.textContent="📋 Copy";copyBtn.classList.remove("success");},2000);
+      });
     });
-    // Regenerate button (only for assistant)
     const regenBtn=document.createElement("button");regenBtn.className="msg-action-btn regen";regenBtn.textContent="↺ Retry";
     regenBtn.addEventListener("click",()=>{
       if(!isReady||isGenerating||!lastUserPrompt)return;
-      // Remove last assistant message from history and DOM
       if(conversationHistory.length&&conversationHistory[conversationHistory.length-1].role==="assistant")conversationHistory.pop();
-      wrap.remove();
-      generate(lastUserPrompt);
+      wrap.remove();generate(lastUserPrompt);
     });
     actions.appendChild(copyBtn);actions.appendChild(regenBtn);
     body.appendChild(actions);
@@ -292,10 +306,13 @@ function createHNList(stories){
 // Returns {thinkText, answerText}
 function parseThinkTags(raw){
   const s=raw.indexOf("<think>"),e=raw.indexOf("</think>");
-  if(s===-1)return{thinkText:"",answerText:raw};
-  const thinkText=e>s?raw.slice(s+7,e):"";
-  const answerText=(e>s?raw.slice(e+8):raw.slice(s+7)).trim();
-  return{thinkText,answerText};
+  // No think tags — return as-is
+  if(s===-1)return{thinkText:"",answerText:raw.trim()};
+  // Extract think content
+  const thinkText=e>s?raw.slice(s+7,e).trim():"";
+  // Answer is strictly what comes AFTER </think> — ignoring any pre-think garbage tokens
+  const answerText=e>s?raw.slice(e+8).trim():"";
+  return{thinkText,answerText:answerText||raw.trim()};
 }
 function attachThinkBlock(body,thinkText){
   if(!thinkText.trim())return;
@@ -473,25 +490,32 @@ async function generate(userText){
   ];
 
   let fullRaw="",firstChunk=true;
-  // streaming buffer for think tag detection
-  let streamBuf="";
+  let lastRenderTime=0; // throttle DOM updates for smooth UI
   try{
     const stream=await engine.chat.completions.create({
       messages,stream:true,stream_options:{include_usage:true},
       max_tokens:cfg.tokens,temperature:cfg.temp,top_p:0.9,
-      frequency_penalty:cfg.rep-1  // webllm uses frequency_penalty not repetition_penalty
+      frequency_penalty:Math.max(0,cfg.rep-1)
     });
     for await(const chunk of stream){
       if(abortFlag){try{await engine.interruptGenerate();}catch{} break;}
       const delta=chunk.choices?.[0]?.delta?.content;
       if(delta){
         if(firstChunk){aWrap.classList.remove("loading");aWrap.classList.add("streaming");firstChunk=false;}
-        fullRaw+=delta;streamBuf+=delta;
-        // Show text, stripping <think> blocks while streaming
-        const display=fullRaw.replace(/<think>[\s\S]*?<\/think>/g,"").replace(/<think>[\s\S]*/,"[reasoning…]").trim();
-        aTextEl.textContent=display;
+        fullRaw+=delta;
+        // Throttle DOM writes to ~30fps so UI never freezes
+        const now=performance.now();
+        if(now-lastRenderTime>33){
+          lastRenderTime=now;
+          // Strip pre-<think> garbage, ongoing think blocks, and completed think blocks
+          let display=fullRaw;
+          const ts=fullRaw.indexOf("<think>");
+          if(ts!==-1)display=fullRaw.slice(ts); // drop any garbage before <think>
+          display=display.replace(/<think>[\s\S]*?<\/think>/g,"").replace(/<think>[\s\S]*/,"[reasoning\u2026]").trim();
+          aTextEl.textContent=display||"\u2026";
+          scrollToBottom();
+        }
         const s=recordToken();if(s!==null)updateTps(s);
-        scrollToBottom();
       }
       if(chunk.usage){const el=(performance.now()-genStartTime)/1000;if(el>0.05)updateTps((chunk.usage.completion_tokens||tokenCount)/el);}
     }
@@ -512,6 +536,16 @@ async function generate(userText){
     if(abortFlag){aWrap.classList.remove("streaming","loading");if(!fullRaw)aTextEl.textContent="(Stopped)";if(fullRaw)conversationHistory.push({role:"assistant",content:fullRaw});}
     else{aWrap.classList.remove("streaming","loading");aWrap.classList.add("error");aTextEl.textContent=`Error: ${err.message||err}`;}
   }finally{
+    // Inject copy/retry action bar now that streaming is complete
+    if(fullRaw&&!aWrap.classList.contains("error")){
+      const actions=document.createElement("div");actions.className="msg-actions";
+      const copyBtn=document.createElement("button");copyBtn.className="msg-action-btn";copyBtn.textContent="📋 Copy";
+      copyBtn.addEventListener("click",()=>{navigator.clipboard.writeText(aTextEl.textContent||"").then(()=>{copyBtn.textContent="✓ Copied";copyBtn.classList.add("success");setTimeout(()=>{copyBtn.textContent="📋 Copy";copyBtn.classList.remove("success");},2000);});});
+      const regenBtn=document.createElement("button");regenBtn.className="msg-action-btn regen";regenBtn.textContent="↺ Retry";
+      regenBtn.addEventListener("click",()=>{if(!isReady||isGenerating||!lastUserPrompt)return;if(conversationHistory.length&&conversationHistory[conversationHistory.length-1].role==="assistant")conversationHistory.pop();aWrap.remove();generate(lastUserPrompt);});
+      actions.appendChild(copyBtn);actions.appendChild(regenBtn);
+      aBody.appendChild(actions);
+    }
     setGeneratingUI(false);setInputEnabled(true);
     elHintStatus.textContent="Ready";elHintStatus.className="";
     elUserInput.focus();scrollToBottom();
@@ -579,3 +613,19 @@ loadCfg();applySettingsUI();
 initVoice();
 initEmbedder();
 initModel();
+
+// ── KEEP MODEL IN RAM ──
+// Prevent browser from unloading the page (and model) while it's active
+window.addEventListener("beforeunload",e=>{
+  if(isReady&&conversationHistory.length){
+    e.preventDefault();
+    e.returnValue="Vanta has your conversation loaded. Leave?";
+  }
+});
+// On tab hide: keep engine alive (do nothing special — webllm holds GPU memory)
+// On tab show: if engine lost, offer reload
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&!isReady&&engine){
+    createSystemMessage("⚠️ Context may have been suspended. If responses fail, refresh.","warn");
+  }
+});

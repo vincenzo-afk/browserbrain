@@ -272,17 +272,50 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .btn-kb-url:hover{background:rgba(96,165,250,.2)}
 /* ── MOBILE EXTRA ── */
 @media(max-width:600px){
-  .persona-select{font-size:10px;padding:3px 5px;max-width:80px}
-  .btn-icon-header{font-size:12px;padding:3px 5px}
-  .settings-panel{width:100vw;right:0;left:0;border-radius:0}
-  .setting-row{grid-template-columns:70px 1fr 32px}
+  :root{--header-h:auto}
+  #header{flex-wrap:wrap;gap:4px;padding:8px 10px;min-height:48px}
+  .header-left{flex:1;min-width:0}
+  .header-right{flex-wrap:wrap;gap:5px;width:100%;justify-content:flex-end}
+  .header-badges{gap:4px}
+  .persona-select{display:none} /* moved to settings */
+  .btn-icon-header{font-size:12px;padding:3px 6px}
+  .btn-kb{padding:3px 7px;font-size:10px}
+  .tps-wrap{min-width:52px;padding:2px 6px}
+  #tps-value{font-size:12px;min-width:24px}
+  .tps-unit{font-size:8px}
+  .badge-size{display:none}
+  /* Input area */
+  #input-area{padding:6px 8px 10px}
+  #input-inner{gap:5px;padding:6px 8px;border-radius:var(--radius)}
+  #user-input{font-size:14px;min-height:24px}
+  .input-buttons{gap:5px}
+  .btn-web,.btn-clear,.btn-send,.voice-btn{height:34px;padding:0 9px;font-size:12px}
+  .btn-label{display:none}
+  /* Messages */
+  #messages-list{padding:0 8px}
+  .message{gap:8px;padding:10px 0}
+  .message-text{font-size:13.5px}
+  .message-avatar{width:20px;height:20px;font-size:10px}
+  /* Thinking/code */
   .thinking-block{font-size:11px}
   .msg-code-body code{font-size:11px}
-  .voice-btn{padding:4px 6px}
-  .msg-code-body code{font-size:11px}
-  .voice-btn{padding:4px 6px}
-  .btn-label{display:none}
-  .btn-web,.btn-clear,.btn-send,.voice-btn{padding:5px 7px}
+  /* KB panel */
+  .kb-panel{width:100vw}
+  /* Settings */
+  .settings-panel{width:100vw;right:0;left:0;border-radius:0;position:fixed;top:auto;bottom:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.5)}
+  .setting-row{grid-template-columns:75px 1fr 34px}
+  /* Download button */
+  #download-chat-btn{bottom:74px;right:10px;font-size:10px;padding:5px 10px}
+  /* Empty state */
+  .empty-hex{font-size:36px}
+  .empty-headline{font-size:12px}
+  .empty-sub{font-size:11px}
+}
+@media(max-width:400px){
+  .tps-wrap{display:none}
+  .header-right{gap:4px}
+  .badge-embedder{display:none}
+  .btn-web{display:none}
 }
 /* ── MESSAGE ACTION BAR ── */
 .msg-actions{display:flex;align-items:center;gap:5px;margin-top:6px;opacity:0;transition:opacity var(--transition)}
