@@ -49,6 +49,7 @@ function saveCfg() { try { localStorage.setItem("vanta-cfg",JSON.stringify(cfg))
 // ── RUNTIME STATE ──
 let engine=null, embedder=null;
 let isReady=false, embedderReady=false, isGenerating=false, abortFlag=false;
+let isReloading=false; // prevents concurrent reloads
 let webSearchEnabled=true, ttsEnabled=false;
 let conversationHistory=[];
 let tpsHistory=[], genStartTime=0, tokenCount=0;
@@ -410,6 +411,79 @@ async function initEmbedder(){
   catch(e){console.error("[Vanta] Embedder:",e);setEmbStatus("error");}
 }
 
+// ── GPU ERROR DETECTION ──
+function isGPUError(err){
+  const msg=(err?.message||String(err)).toLowerCase();
+  return msg.includes("mapasync")
+    ||msg.includes("gpubuffer")
+    ||msg.includes("model not loaded")
+    ||msg.includes("mlcengine.reload")
+    ||msg.includes("already been disposed")
+    ||msg.includes("external instance reference")
+    ||msg.includes("device lost")
+    ||msg.includes("invalid external");
+}
+
+// ── SILENT ENGINE RELOAD ──
+// Reloads the model without showing the big init UI.
+// Returns true if reload succeeded.
+async function reloadEngine(){
+  if(isReloading)return false;
+  isReloading=true;
+  isReady=false;
+  setStatus("downloading","↻ Reloading");
+  elHintStatus.textContent="Reloading…";
+  setInputEnabled(false);
+  createSystemMessage("↻ GPU context lost — reloading model…","warn");
+  try{
+    // Dispose old engine safely
+    try{ if(engine&&engine.unload)await engine.unload(); }catch{}
+    engine=null;
+    let fp=false;
+    const cb=(r)=>{
+      const pct=r.progress*100;
+      if(!fp){fp=true;setStatus("downloading","↻ Reloading");}
+      if(pct>0)showProgress(pct,`Reloading… ${pct.toFixed(0)}%`);
+      if(r.progress>=1)hideProgress();
+    };
+    engine=await webllm.CreateMLCEngine(MODEL_ID,{initProgressCallback:cb,logLevel:"SILENT"});
+    if(engine.device)engine.device.lost.then(()=>{isReady=false;});
+    isReady=true;
+    isReloading=false;
+    setStatus("ready","✓ Ready");
+    elHintStatus.textContent="Ready";
+    setInputEnabled(true);
+    hideProgress();
+    createSystemMessage("✅ Model reloaded — your message will be retried.","success");
+    return true;
+  }catch(e){
+    isReloading=false;
+    setStatus("error","Reload failed");
+    elHintStatus.textContent="Failed";
+    hideProgress();
+    setInputEnabled(false);
+    createSystemMessage("⚠️ Reload failed. Please refresh the page.","warn");
+    return false;
+  }
+}
+
+// ── ENGINE HEALTH CHECK ──
+// Returns true if engine is usable, attempts reload if not.
+async function ensureEngine(){
+  if(!engine||!isReady){
+    if(isReloading){
+      // Wait for ongoing reload (poll)
+      for(let i=0;i<60;i++){
+        await new Promise(r=>setTimeout(r,500));
+        if(isReady)return true;
+      }
+      return false;
+    }
+    return reloadEngine();
+  }
+  return true;
+}
+
 // ── INIT MODEL ──
 async function initModel(){
   setStatus("init","Initializing…");elHintStatus.textContent="Loading…";setInputEnabled(false);
@@ -435,8 +509,10 @@ async function initModel(){
 }
 
 // ── GENERATE ──
-async function generate(userText){
-  if(!isReady||isGenerating)return;
+async function generate(userText,_isRetry=false){
+  // Ensure engine is alive before proceeding
+  if(isGenerating&&!_isRetry)return;
+  if(!await ensureEngine())return;
   const trimmed=userText.trim();if(!trimmed)return;
   hideEmptyState();
   conversationHistory.push({role:"user",content:trimmed});
@@ -533,8 +609,30 @@ async function generate(userText){
       await maybeSummarize();
     }
   }catch(err){
-    if(abortFlag){aWrap.classList.remove("streaming","loading");if(!fullRaw)aTextEl.textContent="(Stopped)";if(fullRaw)conversationHistory.push({role:"assistant",content:fullRaw});}
-    else{aWrap.classList.remove("streaming","loading");aWrap.classList.add("error");aTextEl.textContent=`Error: ${err.message||err}`;}
+    // ── GPU CONTEXT LOSS: auto-reload and retry once ──
+    if(isGPUError(err)&&!_isRetry){
+      aWrap.remove(); // remove the failed message bubble
+      // Pop the user message we added (will be re-added on retry)
+      if(conversationHistory.length&&conversationHistory[conversationHistory.length-1].role==="user"){
+        conversationHistory.pop();
+      }
+      const ok=await reloadEngine();
+      if(ok){
+        // Retry the exact same prompt once
+        generate(userText,true);
+        return; // skip finally cleanup, retry handles it
+      } else {
+        createSystemMessage("⚠️ Could not recover. Please refresh the page.","warn");
+      }
+    } else if(abortFlag){
+      aWrap.classList.remove("streaming","loading");
+      if(!fullRaw)aTextEl.textContent="(Stopped)";
+      if(fullRaw)conversationHistory.push({role:"assistant",content:fullRaw});
+    } else {
+      aWrap.classList.remove("streaming","loading");aWrap.classList.add("error");
+      const errMsg=err?.message||String(err);
+      aTextEl.textContent=`Error: ${errMsg}`;
+    }
   }finally{
     // Inject copy/retry action bar now that streaming is complete
     if(fullRaw&&!aWrap.classList.contains("error")){
@@ -615,17 +713,23 @@ initEmbedder();
 initModel();
 
 // ── KEEP MODEL IN RAM ──
-// Prevent browser from unloading the page (and model) while it's active
 window.addEventListener("beforeunload",e=>{
-  if(isReady&&conversationHistory.length){
-    e.preventDefault();
-    e.returnValue="Vanta has your conversation loaded. Leave?";
+  if(isReady&&conversationHistory.length){e.preventDefault();e.returnValue="Vanta has your conversation loaded. Leave?";}
+});
+// When tab regains focus: if engine is dead, reload it automatically
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&!isReady&&!isReloading){
+    // Engine was lost while tab was hidden — reload silently
+    reloadEngine();
   }
 });
-// On tab hide: keep engine alive (do nothing special — webllm holds GPU memory)
-// On tab show: if engine lost, offer reload
-document.addEventListener("visibilitychange",()=>{
-  if(!document.hidden&&!isReady&&engine){
-    createSystemMessage("⚠️ Context may have been suspended. If responses fail, refresh.","warn");
+// Intercept unhandled GPU promise rejections globally
+window.addEventListener("unhandledrejection",e=>{
+  if(e.reason&&isGPUError(e.reason)){
+    e.preventDefault(); // suppress console error
+    if(!isReloading&&!isGenerating){
+      isReady=false;
+      reloadEngine();
+    }
   }
 });
