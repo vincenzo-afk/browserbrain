@@ -72,6 +72,8 @@ const elUserInput=$("user-input"),elSendBtn=$("send-btn"),elClearBtn=$("clear-bt
 const elWebToggle=$("web-toggle"),elMicBtn=$("mic-btn"),elSoundwave=elMicBtn.querySelector(".soundwave");
 const elTtsToggle=$("tts-toggle"),elSettingsBtn=$("settings-btn"),elSettingsPanel=$("settings-panel"),elSettingsClose=$("settings-close");
 const elPersonaSelect=$("persona-select");
+const elPersonaSelectSettings=$("persona-select-settings"); // in settings panel (visible on mobile)
+const elTtsToggleSettings=$("tts-toggle-settings"); // in settings panel
 const elKbToggle=$("kb-toggle"),elKbCount=$("kb-count"),elKbPanel=$("kb-panel"),elKbOverlay=$("kb-overlay"),elKbClose=$("kb-close");
 const elKbInput=$("kb-input"),elKbAddBtn=$("kb-add-btn"),elKbStatus=$("kb-status"),elKbList=$("kb-list"),elKbChunksLabel=$("kb-chunks-label"),elKbClearAll=$("kb-clear-all");
 const elPdfInput=$("pdf-input"),elPdfStatus=$("pdf-status");
@@ -174,7 +176,12 @@ async function scrapeURL(url){
 
 // ── WEB SEARCH ──
 function needsWebSearch(p){
-  return["search","find","latest","news","current","today","who is","price","weather","stock","recent","right now","2024","2025","2026","yesterday","trending","live","what happened","hacker news","tech news"].some(t=>p.toLowerCase().includes(t));
+  const lower=p.toLowerCase();
+  // Question words that indicate lookup intent
+  const questionTriggers=["who is","who was","what is","what are","what was","where is","when did","how much","how many","define ","explain "];
+  const timeTriggers=["latest","recent","current","today","right now","live","yesterday","this week","this year","2024","2025","2026","now"];
+  const topicTriggers=["news","weather","price","stock","score","result","search","find","look up","hacker news","tech news","trending","update","release","launched","announced","happened"];
+  return [...questionTriggers,...timeTriggers,...topicTriggers].some(t=>lower.includes(t));
 }
 async function getWeather(q){
   const m=q.match(/weather\s+(?:in\s+)?([a-zA-Z\s]+)/i);if(!m)return null;
@@ -195,10 +202,35 @@ async function getHackerNews(){
 }
 async function webSearch(q){
   const results=[];
-  try{const r=await fetchWithTimeout(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`);const d=await r.json();if(d.AbstractText)results.push(`DuckDuckGo: ${d.AbstractText}`);if(d.Answer)results.push(`Answer: ${d.Answer}`);}catch{}
-  try{const r=await fetchWithTimeout(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q.split(" ").slice(0,4).join("_"))}`);const w=await r.json();if(w.extract)results.push(`Wikipedia: ${w.extract.slice(0,600)}`);}catch{}
-  try{const tgt=`https://en.wikipedia.org/wiki/${encodeURIComponent(q.split(" ").slice(0,4).join("_"))}`;const r=await fetchWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(tgt)}`);const d=await r.json();const doc=new DOMParser().parseFromString(d.contents,"text/html");const p=[...doc.querySelectorAll("p")].map(x=>x.textContent).filter(t=>t.trim().length>80).slice(0,3).join(" ");if(p)results.push(`Web: ${p.slice(0,800)}`);}catch{}
-  return results.join("\n\n");
+  // 1. DuckDuckGo Instant Answer
+  try{
+    const r=await fetchWithTimeout(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`);
+    const d=await r.json();
+    if(d.AbstractText)results.push(`Summary: ${d.AbstractText}`);
+    if(d.Answer)results.push(`Answer: ${d.Answer}`);
+    if(!d.AbstractText&&d.RelatedTopics?.length){
+      const tops=d.RelatedTopics.slice(0,3).map(t=>t.Text).filter(Boolean);
+      if(tops.length)results.push(`Related: ${tops.join(' | ')}`);
+    }
+  }catch{}
+  // 2. Wikipedia summary
+  try{
+    const term=q.replace(/[^a-z0-9 ]/gi,'').split(' ').slice(0,5).join('_');
+    const r=await fetchWithTimeout(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term)}`);
+    const w=await r.json();
+    if(w.extract&&w.type!=='disambiguation')results.push(`Wikipedia: ${w.extract.slice(0,700)}`);
+  }catch{}
+  // 3. Scrape via allorigins proxy (DuckDuckGo HTML results page)
+  try{
+    const ddgUrl=`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+    const r=await fetchWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(ddgUrl)}`,10000);
+    const data=await r.json();
+    const doc=new DOMParser().parseFromString(data.contents,'text/html');
+    const snippets=[...doc.querySelectorAll('.result__snippet,.result__body,.snippet')]
+      .map(el=>el.textContent.trim()).filter(t=>t.length>40).slice(0,4);
+    if(snippets.length)results.push(`Web results:\n${snippets.join('\n')}`);
+  }catch{}
+  return results.join('\n\n');
 }
 // ── STATUS ──
 function setStatus(type,text){
@@ -227,7 +259,14 @@ function recordToken(){
 function showProgress(pct,label){elProgressCont.classList.remove("hidden");elProgressCont.setAttribute("aria-valuenow",Math.round(pct));elProgressFill.style.width=`${pct}%`;elProgressLabel.textContent=label;}
 function hideProgress(){elProgressCont.classList.add("hidden");elProgressFill.style.width="0%";}
 function setInputEnabled(on){
-  elUserInput.disabled=!on;elClearBtn.disabled=!on;elSendBtn.disabled=!on;elMicBtn.disabled=!on;
+  // NOTE: elSendBtn is intentionally NOT disabled during generation
+  // so the user can always click it to Stop.
+  elUserInput.disabled=!on;
+  elClearBtn.disabled=!on;
+  elMicBtn.disabled=!on;
+  // Only disable send when model isn't loaded at all
+  if(!on&&!isGenerating)elSendBtn.disabled=true;
+  else elSendBtn.disabled=false;
   elTemplateBar.querySelectorAll(".chip").forEach(c=>c.disabled=!on);
 }
 function setGeneratingUI(gen){
@@ -401,7 +440,10 @@ function applySettingsUI(){
   elSlTokens.value=cfg.tokens;elValTokens.textContent=cfg.tokens;
   elSlRep.value=cfg.rep;elValRep.textContent=cfg.rep;
   elPersonaSelect.value=cfg.persona;
+  elPersonaSelectSettings.value=cfg.persona;
   elTtsToggle.classList.toggle("is-on",cfg.ttsOn);
+  elTtsToggleSettings.textContent=cfg.ttsOn?"On":"Off";
+  elTtsToggleSettings.classList.toggle("is-on",cfg.ttsOn);
   ttsEnabled=cfg.ttsOn;
 }
 
@@ -680,7 +722,24 @@ elSettingsClose.addEventListener("click",()=>{settingsOpen=false;elSettingsPanel
 elSlTemp.addEventListener("input",()=>{cfg.temp=parseFloat(elSlTemp.value);elValTemp.textContent=cfg.temp;saveCfg();});
 elSlTokens.addEventListener("input",()=>{cfg.tokens=parseInt(elSlTokens.value);elValTokens.textContent=cfg.tokens;saveCfg();});
 elSlRep.addEventListener("input",()=>{cfg.rep=parseFloat(elSlRep.value);elValRep.textContent=cfg.rep;saveCfg();});
-elPersonaSelect.addEventListener("change",()=>{const mode=elPersonaSelect.value;cfg.persona=mode;saveCfg();createSystemMessage(`🎭 Switched to ${mode} mode`);});
+elPersonaSelect.addEventListener("change",()=>{
+  const mode=elPersonaSelect.value;
+  cfg.persona=mode;saveCfg();
+  elPersonaSelectSettings.value=mode; // keep in sync
+  createSystemMessage(`🎭 Switched to ${mode} mode`);
+});
+elPersonaSelectSettings.addEventListener("change",()=>{
+  const mode=elPersonaSelectSettings.value;
+  cfg.persona=mode;saveCfg();
+  elPersonaSelect.value=mode; // keep header in sync
+  createSystemMessage(`🎭 Switched to ${mode} mode`);
+});
+elTtsToggleSettings.addEventListener("click",()=>{
+  ttsEnabled=!ttsEnabled;cfg.ttsOn=ttsEnabled;saveCfg();
+  elTtsToggle.classList.toggle("is-on",ttsEnabled);
+  elTtsToggleSettings.textContent=ttsEnabled?"On":"Off";
+  elTtsToggleSettings.classList.toggle("is-on",ttsEnabled);
+});
 elKbToggle.addEventListener("click",()=>kbPanelOpen?closeKBPanel():openKBPanel());
 elKbClose.addEventListener("click",closeKBPanel);
 elKbOverlay.addEventListener("click",closeKBPanel);

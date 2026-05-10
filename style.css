@@ -215,6 +215,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .settings-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--text-dim)}
 .settings-body{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
 .setting-row{display:grid;grid-template-columns:90px 1fr 36px;align-items:center;gap:8px}
+.setting-row-full{display:flex;align-items:center;gap:10px;padding:4px 0}
+.persona-select-full{flex:1;background:var(--surface-raised);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:var(--font-mono);font-size:12px;padding:5px 8px;cursor:pointer;outline:none}
+.persona-select-full:focus{border-color:var(--amber-dim)}
+.btn-tts-settings{padding:4px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:11px;font-family:var(--font-mono);cursor:pointer;transition:all var(--transition)}
+.btn-tts-settings.is-on{background:var(--amber-glow);border-color:var(--amber-dim);color:var(--amber)}
 .setting-label{font-size:11px;color:var(--text-muted);font-family:var(--font-mono)}
 .settings-slider{width:100%;accent-color:var(--amber);cursor:pointer}
 .setting-val{font-size:11px;color:var(--amber);font-family:var(--font-mono);text-align:right}

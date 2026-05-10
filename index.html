@@ -113,6 +113,17 @@
   <div id="settings-panel" class="settings-panel hidden" aria-label="Generation settings">
     <div class="settings-header"><span>⚙️ Generation Settings</span><button id="settings-close" class="kb-close-btn">✕</button></div>
     <div class="settings-body">
+      <!-- Persona — always shown (also accessible on mobile) -->
+      <div class="setting-row setting-row-full">
+        <span class="setting-label">🎭 Mode</span>
+        <select id="persona-select-settings" class="persona-select-full">
+          <option value="default">Default</option>
+          <option value="dev">⚡ Dev</option>
+          <option value="teacher">📖 Teacher</option>
+          <option value="research">🔬 Research</option>
+          <option value="creative">🎨 Creative</option>
+        </select>
+      </div>
       <label class="setting-row">
         <span class="setting-label">Temperature</span>
         <input type="range" id="sl-temp" class="settings-slider" min="0.1" max="1.5" step="0.05" value="0.4"/>
@@ -128,6 +139,11 @@
         <input type="range" id="sl-rep" class="settings-slider" min="1.0" max="1.5" step="0.05" value="1.1"/>
         <span class="setting-val" id="val-rep">1.1</span>
       </label>
+      <!-- TTS row inside settings for mobile -->
+      <div class="setting-row setting-row-full">
+        <span class="setting-label">🔊 Voice (TTS)</span>
+        <button id="tts-toggle-settings" class="btn-tts-settings">Off</button>
+      </div>
     </div>
   </div>
 
