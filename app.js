@@ -40,6 +40,7 @@ let knowledgeBase=[];
 let kbPanelOpen=false, settingsOpen=false;
 let recognition=null, isRecording=false;
 let lastKbChunksUsed=[];
+let lastUserPrompt=""; // for regenerate
 
 // ── DOM ──
 const $=id=>document.getElementById(id);
@@ -251,6 +252,27 @@ function createMessageEl(role,text,state="done",badges=[]){
   badges.forEach(b=>{const s=document.createElement("span");s.className=b.cls;s.textContent=b.text;roleDiv.appendChild(s);});
   const textEl=document.createElement("div");textEl.className="message-text";textEl.textContent=text;
   body.appendChild(roleDiv);body.appendChild(textEl);
+  // Action bar (shown on hover, assistant messages only)
+  if(role==="assistant"&&state==="done"||state==="loading"){
+    const actions=document.createElement("div");actions.className="msg-actions";
+    // Copy button
+    const copyBtn=document.createElement("button");copyBtn.className="msg-action-btn";copyBtn.textContent="📋 Copy";
+    copyBtn.addEventListener("click",()=>{
+      const content=textEl.textContent||textEl.innerText||"";
+      navigator.clipboard.writeText(content).then(()=>{copyBtn.textContent="✓ Copied";copyBtn.classList.add("success");setTimeout(()=>{copyBtn.textContent="📋 Copy";copyBtn.classList.remove("success");},2000);});
+    });
+    // Regenerate button (only for assistant)
+    const regenBtn=document.createElement("button");regenBtn.className="msg-action-btn regen";regenBtn.textContent="↺ Retry";
+    regenBtn.addEventListener("click",()=>{
+      if(!isReady||isGenerating||!lastUserPrompt)return;
+      // Remove last assistant message from history and DOM
+      if(conversationHistory.length&&conversationHistory[conversationHistory.length-1].role==="assistant")conversationHistory.pop();
+      wrap.remove();
+      generate(lastUserPrompt);
+    });
+    actions.appendChild(copyBtn);actions.appendChild(regenBtn);
+    body.appendChild(actions);
+  }
   wrap.appendChild(avatar);wrap.appendChild(body);
   elMessagesList.appendChild(wrap);scrollToBottom();
   return{wrap,textEl,body,roleDiv};
@@ -497,12 +519,19 @@ async function generate(userText){
 }
 
 // ── HANDLERS ──
-function handleSend(){if(!isReady)return;if(isGenerating){abortFlag=true;return;}const t=elUserInput.value;if(!t.trim())return;generate(t);}
+function handleSend(){if(!isReady)return;if(isGenerating){abortFlag=true;return;}const t=elUserInput.value;if(!t.trim())return;lastUserPrompt=t.trim();generate(t);}
 function handleClear(){
-  if(isGenerating)return;conversationHistory=[];elMessagesList.innerHTML="";
+  if(isGenerating)return;conversationHistory=[];elMessagesList.innerHTML="";lastUserPrompt="";
   elEmptyState.classList.remove("hidden");elEmptyState.setAttribute("aria-hidden","false");
   resetTps();elUserInput.value="";autoResize(elUserInput);elUserInput.focus();
   elHintStatus.textContent="Ready";elHintStatus.className="";
+  document.getElementById("download-chat-btn").classList.remove("visible");
+}
+function downloadChat(){
+  if(!conversationHistory.length)return;
+  const lines=conversationHistory.map(m=>`## ${m.role=="user"?"You":"Vanta"}\n${m.content}`).join("\n\n---\n\n");
+  const blob=new Blob([`# Vanta Conversation\n${new Date().toLocaleString()}\n\n---\n\n${lines}`],{type:"text/markdown"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`vanta-chat-${Date.now()}.md`;a.click();URL.revokeObjectURL(a.href);
 }
 
 // ── EVENTS ──
@@ -539,6 +568,11 @@ elTemplateBar.addEventListener("click",e=>{
   const p=chip.dataset.prompt;if(!p)return;elUserInput.value=p;autoResize(elUserInput);elUserInput.focus();
 });
 document.addEventListener("click",e=>{if(settingsOpen&&!elSettingsPanel.contains(e.target)&&!elSettingsBtn.contains(e.target)){settingsOpen=false;elSettingsPanel.classList.add("hidden");}});
+document.getElementById("download-chat-btn").addEventListener("click",downloadChat);
+// Show download button whenever conversation has messages
+const _downloadBtn=document.getElementById("download-chat-btn");
+const _msgObserver=new MutationObserver(()=>{_downloadBtn.classList.toggle("visible",conversationHistory.length>0);});
+_msgObserver.observe(elMessagesList,{childList:true});
 
 // ── BOOT ──
 loadCfg();applySettingsUI();

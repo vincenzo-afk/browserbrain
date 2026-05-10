@@ -279,6 +279,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   .thinking-block{font-size:11px}
   .msg-code-body code{font-size:11px}
   .voice-btn{padding:4px 6px}
+  .msg-code-body code{font-size:11px}
+  .voice-btn{padding:4px 6px}
   .btn-label{display:none}
   .btn-web,.btn-clear,.btn-send,.voice-btn{padding:5px 7px}
 }
+/* ── MESSAGE ACTION BAR ── */
+.msg-actions{display:flex;align-items:center;gap:5px;margin-top:6px;opacity:0;transition:opacity var(--transition)}
+.message:hover .msg-actions{opacity:1}
+.msg-action-btn{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:20px;color:var(--text-muted);font-size:10px;font-family:var(--font-mono);cursor:pointer;transition:all var(--transition);white-space:nowrap}
+.msg-action-btn:hover{border-color:var(--amber-dim);color:var(--amber);background:var(--amber-glow)}
+.msg-action-btn.success{border-color:rgba(34,197,94,.4);color:var(--green);background:rgba(34,197,94,.06)}
+.msg-action-btn.regen:hover{border-color:rgba(96,165,250,.4);color:var(--blue);background:var(--blue-glow)}
+/* ── DOWNLOAD CHAT BUTTON ── */
+#download-chat-btn{position:fixed;bottom:90px;right:16px;z-index:20;display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--surface-raised);border:1px solid var(--border);border-radius:20px;color:var(--text-muted);font-size:11px;font-family:var(--font-mono);cursor:pointer;transition:all var(--transition);box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:0;pointer-events:none}
+#download-chat-btn.visible{opacity:1;pointer-events:all}
+#download-chat-btn:hover{border-color:var(--amber-dim);color:var(--amber);background:var(--amber-glow)}
