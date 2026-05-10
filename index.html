@@ -1,150 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vanta · On-Device AI + Web Search + RAG</title>
-  <meta name="description" content="Vanta — Qwen2.5 1.5B running in your browser with free web search and local RAG knowledge base. No server, no API key." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vanta · On-Device AI</title>
+  <meta name="description" content="Vanta — Qwen2.5 1.5B in your browser. Web search, RAG, memory, voice, code execution. No server."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-  <div id="scanlines" aria-hidden="true"></div>
-  <div id="app">
+<div id="scanlines" aria-hidden="true"></div>
+<div id="app">
 
-    <!-- ── HEADER ── -->
-    <header id="header">
-      <div class="header-left">
-        <div class="logo">
-          <span class="logo-hex" aria-hidden="true">⬡</span>
-          <span class="logo-text">Vanta</span>
-        </div>
-        <div class="header-badges" id="header-badges">
-          <span class="badge badge-size" title="Model size on disk">1GB</span>
-          <span class="badge badge-status" id="status-badge">
-            <span class="status-indicator" id="status-indicator" aria-hidden="true"></span>
-            <span id="status-text">Initializing…</span>
-          </span>
-          <span class="badge badge-embedder" id="embedder-badge" title="RAG embedding model status">
-            <span class="status-indicator" id="emb-indicator" aria-hidden="true"></span>
-            <span id="emb-text">RAG…</span>
-          </span>
-        </div>
+  <!-- HEADER -->
+  <header id="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-hex" aria-hidden="true">◈</span>
+        <span class="logo-text">VANTA</span>
       </div>
-      <div class="header-right">
-        <!-- KB Toggle -->
-        <button id="kb-toggle" class="btn-kb" title="Open Knowledge Base panel" aria-expanded="false">
-          📚 KB <span id="kb-count" class="kb-count-badge">(0)</span>
+      <div class="header-badges" id="header-badges">
+        <span class="badge badge-size">1GB</span>
+        <span class="badge badge-status" id="status-badge">
+          <span class="status-indicator" id="status-indicator"></span>
+          <span id="status-text">Initializing…</span>
+        </span>
+        <span class="badge badge-embedder" id="embedder-badge">
+          <span class="status-indicator" id="emb-indicator"></span>
+          <span id="emb-text">RAG…</span>
+        </span>
+        <span class="badge badge-memory hidden" id="memory-badge" title="Long-term memory active">🧠 Memory</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- Persona Mode -->
+      <select id="persona-select" class="persona-select" title="Persona mode">
+        <option value="default">🎭 Default</option>
+        <option value="dev">⚡ Dev</option>
+        <option value="teacher">📖 Teacher</option>
+        <option value="research">🔬 Research</option>
+        <option value="creative">🎨 Creative</option>
+      </select>
+      <!-- TTS Toggle -->
+      <button id="tts-toggle" class="btn-icon-header" title="Text-to-speech (off)" aria-pressed="false">🔊</button>
+      <!-- Settings -->
+      <button id="settings-btn" class="btn-icon-header" title="Generation settings">⚙️</button>
+      <!-- KB -->
+      <button id="kb-toggle" class="btn-kb" title="Knowledge Base" aria-expanded="false">
+        📚 KB <span id="kb-count" class="kb-count-badge">(0)</span>
+      </button>
+      <div class="tps-wrap" id="tps-wrap" title="Tokens per second">
+        <span id="tps-value">—</span><span class="tps-unit">tok/s</span>
+      </div>
+      <!-- Mobile icon row -->
+      <div class="badge-icons" id="badge-icons">
+        <span class="badge-icon" id="status-icon">●</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PROGRESS -->
+  <div id="progress-container" class="hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div id="progress-fill"></div>
+    <div id="progress-label">Preparing…</div>
+  </div>
+
+  <!-- TEMPLATE BAR -->
+  <nav id="template-bar" aria-label="Prompt templates">
+    <button class="chip" data-prompt="What's the latest tech news today?"><span class="chip-icon">◈</span> Tech news</button>
+    <button class="chip" data-prompt="What is the weather in Chennai today?"><span class="chip-icon">◈</span> Weather</button>
+    <button class="chip" data-prompt="Explain quantum entanglement step by step with examples."><span class="chip-icon">◈</span> Explain</button>
+    <button class="chip" data-prompt="Compare REST vs GraphQL with bullet points and code examples."><span class="chip-icon">◈</span> Compare</button>
+    <button class="chip" data-prompt="Write a Python quicksort, explain each step, then show example output."><span class="chip-icon">◈</span> Code</button>
+    <button class="chip" data-prompt="Summarise stoicism in five detailed bullet points with modern examples."><span class="chip-icon">◈</span> Summarise</button>
+    <button class="chip" data-prompt="What is happening in the world right now?"><span class="chip-icon">◈</span> World news</button>
+  </nav>
+
+  <!-- CHAT AREA -->
+  <main id="chat-area" aria-live="polite" aria-label="Conversation">
+    <div id="messages-list"></div>
+    <div id="empty-state" aria-hidden="false">
+      <div class="empty-hex" aria-hidden="true">◈</div>
+      <p class="empty-headline">Vanta · On-Device AI</p>
+      <p class="empty-sub">Dolphin-Qwen2.5-1.5B · No server · No API key.<br/>Memory · RAG · Web Search · Voice · Code Execution</p>
+    </div>
+  </main>
+
+  <!-- INPUT AREA -->
+  <div id="input-area">
+    <div id="input-inner">
+      <textarea id="user-input" placeholder="Ask anything…" rows="1" aria-label="Message input" autocomplete="off" spellcheck="true" disabled></textarea>
+      <div class="input-buttons" role="group" aria-label="Actions">
+        <button id="web-toggle" class="btn-web is-on" title="Web search on" aria-pressed="true"><span>🌐</span><span class="btn-label">Web</span></button>
+        <button id="mic-btn" class="voice-btn" title="Voice input" disabled><span class="mic-icon">🎤</span><span class="soundwave hidden"><span></span><span></span><span></span><span></span></span></button>
+        <button id="clear-btn" class="btn-clear" title="Clear" disabled>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="btn-label">Clear</span>
         </button>
-        <div class="tps-wrap" id="tps-wrap" title="Tokens per second">
-          <span id="tps-value">—</span><span class="tps-unit">tok/s</span>
-        </div>
-        <div class="badge-icons" id="badge-icons">
-          <span class="badge-icon badge-icon-size" title="1GB">1G</span>
-          <span class="badge-icon badge-icon-status" id="status-icon" title="Status">●</span>
-        </div>
+        <button id="send-btn" class="btn-send" disabled>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 12V2M2 7l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-label">Send</span>
+        </button>
       </div>
-    </header>
-
-    <!-- ── PROGRESS BAR ── -->
-    <div id="progress-container" class="hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div id="progress-fill"></div>
-      <div id="progress-label">Preparing…</div>
     </div>
+    <div id="input-hint">Vanta · Dolphin-Qwen2.5-1.5B · <span id="hint-status">Loading…</span></div>
+  </div>
 
-    <!-- ── TEMPLATE CHIP BAR ── -->
-    <nav id="template-bar" aria-label="Prompt templates">
-      <button class="chip" data-prompt="What's the latest tech news today?">
-        <span class="chip-icon">◈</span> Tech news
-      </button>
-      <button class="chip" data-prompt="What is the weather in Chennai today?">
-        <span class="chip-icon">◈</span> Weather
-      </button>
-      <button class="chip" data-prompt="Explain quantum entanglement step by step.">
-        <span class="chip-icon">◈</span> Explain concept
-      </button>
-      <button class="chip" data-prompt="Compare REST vs GraphQL with bullet points.">
-        <span class="chip-icon">◈</span> Compare
-      </button>
-      <button class="chip" data-prompt="Write a Python quicksort then explain the output.">
-        <span class="chip-icon">◈</span> Write code
-      </button>
-      <button class="chip" data-prompt="Summarise the core ideas of stoicism in five bullet points.">
-        <span class="chip-icon">◈</span> Summarise
-      </button>
-      <button class="chip" data-prompt="What is happening in the world right now?">
-        <span class="chip-icon">◈</span> World news
-      </button>
-    </nav>
-
-    <!-- ── CHAT AREA ── -->
-    <main id="chat-area" aria-live="polite" aria-label="Conversation">
-      <div id="messages-list"></div>
-      <div id="empty-state" aria-hidden="false">
-        <div class="empty-hex" aria-hidden="true">⬡</div>
-        <p class="empty-headline">Vanta · On-Device AI</p>
-        <p class="empty-sub">Qwen2.5 1.5B · No server · No data leaves your device.<br />Web search + RAG knowledge base built in.</p>
-      </div>
-    </main>
-
-    <!-- ── INPUT AREA ── -->
-    <div id="input-area">
-      <div id="input-inner">
-        <textarea
-          id="user-input"
-          placeholder="Ask anything… web search auto-activates for live queries"
-          rows="1"
-          aria-label="Message input"
-          autocomplete="off"
-          spellcheck="true"
-          disabled
-        ></textarea>
-        <div class="input-buttons" role="group" aria-label="Message actions">
-          <button id="web-toggle" class="btn-web is-on" title="Web search enabled" aria-pressed="true">
-            <span class="web-icon">🌐</span><span>Web</span>
-          </button>
-          <button id="clear-btn" class="btn-clear" title="Clear conversation" disabled>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            </svg>
-            <span>Clear</span>
-          </button>
-          <button id="send-btn" class="btn-send" disabled aria-label="Send message">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M7 12V2M2 7l5-5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Send</span>
-          </button>
-        </div>
-      </div>
-      <div id="input-hint">Vanta · Qwen2.5-1.5B · <span id="hint-status">Loading model…</span></div>
+  <!-- SETTINGS PANEL -->
+  <div id="settings-panel" class="settings-panel hidden" aria-label="Generation settings">
+    <div class="settings-header"><span>⚙️ Generation Settings</span><button id="settings-close" class="kb-close-btn">✕</button></div>
+    <div class="settings-body">
+      <label class="setting-row">
+        <span class="setting-label">Temperature</span>
+        <input type="range" id="sl-temp" class="settings-slider" min="0.1" max="1.5" step="0.05" value="0.7"/>
+        <span class="setting-val" id="val-temp">0.7</span>
+      </label>
+      <label class="setting-row">
+        <span class="setting-label">Max Tokens</span>
+        <input type="range" id="sl-tokens" class="settings-slider" min="128" max="1024" step="32" value="768"/>
+        <span class="setting-val" id="val-tokens">768</span>
+      </label>
+      <label class="setting-row">
+        <span class="setting-label">Rep. Penalty</span>
+        <input type="range" id="sl-rep" class="settings-slider" min="1.0" max="1.5" step="0.05" value="1.15"/>
+        <span class="setting-val" id="val-rep">1.15</span>
+      </label>
     </div>
+  </div>
 
-    <!-- ── KNOWLEDGE BASE PANEL ── -->
-    <aside id="kb-panel" class="kb-panel" aria-label="Knowledge Base" aria-hidden="true">
-      <div class="kb-panel-header">
-        <span class="kb-panel-title">📚 Knowledge Base</span>
-        <button id="kb-close" class="kb-close-btn" title="Close">✕</button>
+  <!-- KB PANEL -->
+  <aside id="kb-panel" class="kb-panel" aria-label="Knowledge Base" aria-hidden="true">
+    <div class="kb-panel-header">
+      <span class="kb-panel-title">📚 Knowledge Base</span>
+      <button id="kb-close" class="kb-close-btn">✕</button>
+    </div>
+    <div class="kb-panel-body">
+      <!-- PDF Upload -->
+      <div class="kb-section-label">📄 PDF Upload</div>
+      <label class="kb-file-label" for="pdf-input">Choose PDF file…</label>
+      <input type="file" id="pdf-input" accept=".pdf" class="kb-file-input"/>
+      <div class="kb-status" id="pdf-status"></div>
+      <!-- URL Scrape -->
+      <div class="kb-section-label">🌐 Scrape URL</div>
+      <div class="kb-url-row">
+        <input type="url" id="url-input" class="kb-url-input" placeholder="https://example.com/article"/>
+        <button id="url-add-btn" class="btn-kb-url">Add URL</button>
       </div>
-      <div class="kb-panel-body">
-        <textarea
-          id="kb-input"
-          class="kb-textarea"
-          placeholder="Paste any text, documentation, code, notes here…"
-          rows="6"
-        ></textarea>
-        <button id="kb-add-btn" class="btn-kb-add">Add to Knowledge Base</button>
-        <div class="kb-status" id="kb-status"></div>
-        <div class="kb-chunks-label" id="kb-chunks-label"></div>
-        <div id="kb-list" class="kb-list"></div>
-        <button id="kb-clear-all" class="btn-kb-clear-all" style="display:none">🗑 Clear all chunks</button>
-      </div>
-    </aside>
-    <div id="kb-overlay" class="kb-overlay" aria-hidden="true"></div>
+      <div class="kb-status" id="url-status"></div>
+      <!-- Text Paste -->
+      <div class="kb-section-label">📝 Paste Text</div>
+      <textarea id="kb-input" class="kb-textarea" placeholder="Paste any text, documentation, notes here…" rows="5"></textarea>
+      <button id="kb-add-btn" class="btn-kb-add">Add to Knowledge Base</button>
+      <div class="kb-status" id="kb-status"></div>
+      <div class="kb-chunks-label" id="kb-chunks-label"></div>
+      <div id="kb-list" class="kb-list"></div>
+      <button id="kb-clear-all" class="btn-kb-clear-all" style="display:none">🗑 Clear all</button>
+    </div>
+  </aside>
+  <div id="kb-overlay" class="kb-overlay" aria-hidden="true"></div>
 
-  </div><!-- /#app -->
-  <script type="module" src="app.js"></script>
+</div><!-- /#app -->
+<script type="module" src="app.js"></script>
 </body>
 </html>
