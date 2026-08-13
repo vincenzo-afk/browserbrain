@@ -1,0 +1,10 @@
+{
+  "name": "BrowserBrain — Private browser AI",
+  "short_name": "BrowserBrain",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#f7f4ee",
+  "description": "A private local AI assistant with optional web context.",
+  "icons": [{"src":"/manus-storage/browserbrain-mark_4e8fa8c7.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
+}
