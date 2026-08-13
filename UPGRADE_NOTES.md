@@ -6,7 +6,7 @@ BrowserBrain now presents a Claude-like three-column workspace built for a local
 
 ## Local model strategy
 
-The runtime attempts `Qwen2.5-3B-Instruct-q4f16_1-MLC` through WebLLM when WebGPU is available. If the device cannot load that model, it retries with `Qwen2.5-1.5B-Instruct-q4f16_1-MLC`. For browsers without WebGPU, it uses a browser-only Transformers.js WASM fallback with `Xenova/SmolLM2-360M-Instruct`. The fallback is intentionally small enough to make cross-device support practical, although first-load time and memory use still depend on the device.
+The runtime attempts `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` through WebLLM when WebGPU is available. If the device cannot load that model, it retries with `Qwen2.5-0.5B-Instruct-q4f16_1-MLC`. For browsers without WebGPU, it uses a dedicated browser-only Transformers.js v4 Web Worker with `Xenova/flan-t5-small` in plain `int8`, followed by an `fp32` rescue path. First-load time and memory use still depend on the device and browser cache.
 
 The model files are downloaded by the browser and cached by the runtime. The app does not send prompts to a BrowserBrain server. Optional web tools are separate: the user chooses when to fetch public context, and the UI labels that context as sourced evidence rather than pretending it came from the local model.
 
@@ -25,7 +25,7 @@ The context desk includes:
 - Same-host crawl mode that follows a small number of links and limits page text to keep context manageable.
 - Local note retrieval that scores saved notes against the current prompt before including them in the model context.
 
-Public free relays can be rate-limited or blocked by target sites. The UI communicates that these tools are optional and best-effort rather than hiding the limitation.
+Public free relays can be rate-limited or blocked by target sites. The UI communicates that these tools are optional and best-effort rather than hiding the limitation. If all local model candidates exceed the bounded initialization window, the UI enters Research demo mode instead of retrying forever; web tools and notes remain available, but no fake model response is produced.
 
 ## Logo handoff
 
@@ -37,4 +37,4 @@ The app includes a descriptive title, meta description, keyword coverage, Open G
 
 ## Verification
 
-`pnpm check` and `pnpm build` pass. The production build reports only the existing large-chunk warning from the template's Markdown/code rendering bundle. The development preview was visually checked at desktop width after the design refinement. The model download itself is intentionally lazy and can take longer than the first paint, especially on a clean browser cache.
+`pnpm check` and `pnpm build` pass. The production build reports only the existing large-chunk warning from the template's Markdown/code rendering bundle. The development preview was visually checked at desktop width after the design refinement. The model download itself is intentionally lazy and can take longer than the first paint, especially on a clean browser cache. The production server now imports Express explicitly and serves the SPA fallback through terminal middleware.

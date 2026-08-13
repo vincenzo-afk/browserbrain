@@ -12,20 +12,46 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="BrowserBrain — Private AI that runs in your browser" />
     <meta property="og:description" content="Ask a local model. Bring your own context. Optional web research, URL reading, crawling, and private notes." />
-    <meta property="og:url" content="https://browserbrain.vercel.app/" />
+    <meta property="og:url" content="" />
     <meta property="og:image" content="/manus-storage/browserbrain-local-intelligence_59604953.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="BrowserBrain — Private AI that runs in your browser" />
     <meta name="twitter:description" content="A browser-first local AI workspace with optional web context." />
     <meta name="twitter:image" content="/manus-storage/browserbrain-local-intelligence_59604953.png" />
-    <link rel="canonical" href="https://browserbrain.vercel.app/" />
+    <link rel="canonical" href="" />
     <link rel="icon" type="image/png" href="/manus-storage/browserbrain-assistant-mark_1a811767.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"BrowserBrain","applicationCategory":"ProductivityApplication","operatingSystem":"Web browser","description":"A private browser-first AI assistant that runs a local model with optional web search, URL reading, crawling, and on-device notes.","url":"https://browserbrain.vercel.app/","softwareVersion":"2.0.0","license":"https://github.com/vincenzo-afk/browserbrain/blob/main/LICENSE"}</script>
+    <script type="application/ld+json" data-browserbrain-schema>{"@context":"https://schema.org","@type":"SoftwareApplication","name":"BrowserBrain","applicationCategory":"ProductivityApplication","operatingSystem":"Web browser","description":"A private browser-first AI assistant that runs a local model with optional web search, URL reading, crawling, and on-device notes.","url":"","softwareVersion":"2.0.0","license":"https://github.com/vincenzo-afk/browserbrain/blob/main/LICENSE"}</script>
+    <script>
+      (() => {
+        const siteUrl = `${window.location.origin}/`;
+        document.querySelector('link[rel="canonical"]')?.setAttribute("href", siteUrl);
+        document.querySelector('meta[property="og:url"]')?.setAttribute("content", siteUrl);
+        const schema = document.querySelector("script[data-browserbrain-schema]");
+        if (!schema) return;
+        try {
+          const data = JSON.parse(schema.textContent || "{}");
+          data.url = siteUrl;
+          schema.textContent = JSON.stringify(data);
+        } catch {
+          /* Keep the valid relative JSON-LD fallback if runtime rewriting is unavailable. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script defer src="%VITE_ANALYTICS_ENDPOINT%/umami" data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <script type="module">
+      const analyticsEndpoint = "%VITE_ANALYTICS_ENDPOINT%";
+      const analyticsWebsiteId = "%VITE_ANALYTICS_WEBSITE_ID%";
+      if (analyticsEndpoint.startsWith("http") && analyticsWebsiteId && !analyticsEndpoint.includes("%") && !analyticsWebsiteId.includes("%")) {
+        const analytics = document.createElement("script");
+        analytics.defer = true;
+        analytics.src = `${analyticsEndpoint.replace(/\/+$/, "")}/umami`;
+        analytics.dataset.websiteId = analyticsWebsiteId;
+        document.head.appendChild(analytics);
+      }
+    </script>
   </body>
 </html>

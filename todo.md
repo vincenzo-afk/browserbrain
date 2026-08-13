@@ -24,3 +24,11 @@
 - [x] Refine composer, message bubbles, typography, and logo placement toward a Claude-like experience without copying its mark.
 - [ ] Test at least one actual prompt-to-answer flow and mobile layout.
 - [ ] Save the verified checkpoint and push the repair under the user's Git identity.
+
+## Follow-up request: README and repository cleanup
+
+- [ ] Review the uploaded pasted content and incorporate any relevant project-specific requirements.
+- [ ] Replace the minimal template README with a complete BrowserBrain README covering setup, architecture, privacy, local model loading, web tools, SEO, troubleshooting, and contribution guidance.
+- [ ] Audit remaining source, scripts, metadata, and dependency issues; fix concrete problems without changing the browser-only inference requirement.
+- [ ] Run type-check, production build, and focused browser/UI verification after the fixes.
+- [ ] Commit and push the README and cleanup changes under `vincenzo-afk <itsmebk2007@gmail.com>`.
