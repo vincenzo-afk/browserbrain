@@ -47,6 +47,9 @@
 .message-meta { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 700; color: var(--ink); }
 .chat-message.user .message-meta { color: var(--muted); font-weight: 600; }
 .chat-message.assistant .message-copy { max-width: 690px; font-size: 15px; line-height: 1.82; }
+.assistant-content { display: grid; gap: 14px; }
+.assistant-content p { margin: 0; }
+.assistant-code { margin: 0; overflow-x: auto; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: #f2ede5; color: var(--ink); font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
 .chat-message.user .message-copy { border-radius: 17px 17px 5px 17px; padding: 13px 16px; background: #f1ece4; }
 .message-actions { margin-top: 13px; opacity: .86; }
 .message-actions button { border-radius: 5px; padding: 4px 6px; }

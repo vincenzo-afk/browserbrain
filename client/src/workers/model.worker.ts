@@ -28,6 +28,28 @@ let activeRequest = 0;
 
 const post = (message: unknown) => worker.postMessage(message);
 
+function solveArithmetic(question: string): string | null {
+  const normalized = question.replace(/[?.,!]+$/g, "").trim();
+  const match = normalized.match(/^(?:what\s+is\s+)?(-?\d+(?:\.\d+)?)\s*([+\-*/×÷])\s*(-?\d+(?:\.\d+)?)$/i);
+  if (!match) return null;
+
+  const left = Number(match[1]);
+  const right = Number(match[3]);
+  const operator = match[2];
+  const result = operator === "+"
+    ? left + right
+    : operator === "-"
+      ? left - right
+      : operator === "×" || operator === "*"
+        ? left * right
+        : right === 0
+          ? Number.NaN
+          : left / right;
+
+  if (!Number.isFinite(result)) return null;
+  return Number.isInteger(result) ? String(result) : String(Number(result.toFixed(8)));
+}
+
 async function loadModel(requestId: number) {
   activeRequest = requestId;
   let lastError: unknown;
@@ -70,21 +92,36 @@ async function loadModel(requestId: number) {
 async function generate(request: WorkerRequest) {
   if (!generator) throw new Error("The CPU model is not ready yet.");
   const messages = request.messages || [];
-  const prompt = messages.map((message) => `${message.role === "assistant" ? "Assistant" : message.role === "system" ? "System" : "User"}: ${String(message.content || "")}`).join("\n") + "\nAssistant:";
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content || "Answer clearly and concisely.";
+  const latestUser = latestUserMessage.split(/\n\n(?:WEB CONTEXT|LOCAL NOTES)\b/i)[0].trim();
+  const arithmeticAnswer = solveArithmetic(latestUser);
+  if (arithmeticAnswer !== null) {
+    post({ type: "generated", requestId: request.requestId, text: arithmeticAnswer });
+    return;
+  }
+  const conversation = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => `${message.role === "assistant" ? "Assistant" : "User"}: ${String(message.content || "")}`)
+    .join("\n");
   const taskPrompt = activeTask === "text2text-generation"
-    ? `${messages.find((message) => message.role === "system")?.content || "Answer clearly and concisely."}\n\n${prompt}`
-    : prompt;
+    ? `Answer the user's latest request directly and concisely. Do not repeat the instructions.\n\nUser request:\n${latestUser}\n\nAnswer:`
+    : `${conversation}\nAssistant:`;
+  const isText2Text = activeTask === "text2text-generation";
   const output: any = await generator(taskPrompt, {
-    max_new_tokens: request.maxTokens || 512,
+    max_new_tokens: isText2Text ? Math.min(request.maxTokens || 128, 128) : request.maxTokens || 512,
     temperature: request.temperature ?? 0.28,
     top_p: 0.9,
     repetition_penalty: 1.08,
-    do_sample: (request.temperature ?? 0.28) > 0.1,
+    do_sample: isText2Text ? false : (request.temperature ?? 0.28) > 0.1,
     return_full_text: false,
   });
   const generated = Array.isArray(output) ? output[0]?.generated_text : output?.generated_text;
   const raw = Array.isArray(generated) ? String(generated.at(-1)?.content || "") : String(generated || "");
-  post({ type: "generated", requestId: request.requestId, text: raw.replace(/<\|im_end\|>[\s\S]*$/, "").trim() });
+  const text = raw
+    .replace(/<\|im_end\|>[\s\S]*$/, "")
+    .replace(/^\s*(?:assistant|answer)\s*:\s*/i, "")
+    .trim();
+  post({ type: "generated", requestId: request.requestId, text });
 }
 
 worker.onmessage = (event) => {

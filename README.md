@@ -90,7 +90,7 @@ The Vite project root is `client/`. `server/index.ts` serves the built `dist/pub
 | Build | Vite 7, `@vitejs/plugin-react`, esbuild, pnpm |
 | Browser inference | `@mlc-ai/web-llm` for WebGPU and `@huggingface/transformers` for WebAssembly |
 | Web context | DuckDuckGo Instant Answer API, Wikipedia REST summary API, AllOrigins public CORS relay |
-| Markdown | Streamdown |
+| Assistant rendering | Dependency-free local markdown-lite renderer with safe code-block output |
 | Server | Express 4 with a static-file and SPA fallback wrapper |
 | State and persistence | React state plus browser `localStorage` for sessions and notes |
 | Hosting | Any static-compatible Node host or the project management platform's built-in hosting |
@@ -188,6 +188,8 @@ Model files are fetched at runtime and cached by the browser. The exact first-lo
 
 The CPU worker warms the decoder with a short prompt before declaring itself ready. Generation requests are serialized through the worker adapter, and the UI can interrupt an in-progress generation. The browser preview used during development may be slower than an ordinary desktop browser because it can lack a WebGPU adapter and have constrained network or memory resources.
 
+For short deterministic arithmetic requests, the worker first checks a narrow, safe expression parser and returns the result locally when the input matches a simple two-number operation. Other prompts continue through FLAN-T5. Text-to-text generation is bounded to 128 new tokens and uses deterministic decoding to reduce slow runaway responses from small CPU models.
+
 ## Privacy and data boundaries
 
 BrowserBrain does not send prompts to a BrowserBrain inference server. Local-model prompts and local notes stay in the browser unless the user enables an external web operation or the deployment explicitly injects optional analytics.
@@ -244,6 +246,7 @@ The root-level `app.js`, `style.css`, and `index.html` are retained legacy Vanta
 - Claude-inspired calm editorial chat layout with responsive mobile drawers.
 - Free search, URL reading, same-site crawl, source cards, and private notes.
 - Repository link, placeholder-safe assistant mark, PWA manifest, and SEO metadata.
+- Safe dependency-free assistant message rendering and a deterministic arithmetic fast path for simple calculations.
 - TypeScript checks and production build scripts.
 
 ### Planned
@@ -330,7 +333,7 @@ BrowserBrain is released under the [MIT License](./LICENSE). The repository lice
 
 ## Acknowledgements
 
-BrowserBrain builds on React, Vite, Tailwind CSS, Radix UI, Lucide, Streamdown, WebLLM, Transformers.js, Hugging Face model hosting, DuckDuckGo Instant Answers, Wikipedia, and the AllOrigins public CORS relay. See the references below for the primary project pages.
+BrowserBrain builds on React, Vite, Tailwind CSS, Radix UI, Lucide, WebLLM, Transformers.js, Hugging Face model hosting, DuckDuckGo Instant Answers, Wikipedia, and the AllOrigins public CORS relay. See the references below for the primary project pages.
 
 ## References
 

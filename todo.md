@@ -32,3 +32,11 @@
 - [x] Audit remaining source, scripts, metadata, and dependency issues; fix concrete problems without changing the browser-only inference requirement.
 - [x] Run type-check, production build, and focused browser/UI verification after the fixes.
 - [x] Commit and push the README and cleanup changes under `vincenzo-afk <itsmebk2007@gmail.com>`.
+
+## Follow-up request: pasted_content_2.txt
+
+- [x] Review `pasted_content_2.txt` and identify all actionable requirements or code changes.
+- [x] Apply relevant application, UI, model-runtime, or research-tool changes without violating browser-only inference and privacy boundaries.
+- [x] Update README, SEO, deployment, and troubleshooting documentation to match the applied behavior.
+- [x] Run type-check, production build, and focused browser verification for the changed flows, including a live `What is 2 + 2?` test returning `4`.
+- [ ] Commit and push the completed changes under `vincenzo-afk <itsmebk2007@gmail.com>`.

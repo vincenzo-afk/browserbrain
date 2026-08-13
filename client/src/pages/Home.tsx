@@ -1,8 +1,7 @@
 // BrowserBrain style reminder: warm editorial workspace, graphite ink, ivory paper, signal amber.
 // Keep the reading column calm; let sources, tool activity, and local status carry the technical detail.
 
-import { useEffect, useRef, useState } from "react";
-import { Streamdown } from "streamdown";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, BookOpen, BrainCircuit, Check, CircleCheck, Clipboard, Compass, Copy, ExternalLink, FileText, Github, Globe2, Link2, Loader2, Menu, MessageSquarePlus, PanelLeft, RotateCcw, Search, Settings2, Sparkles, StopCircle, Waypoints, X } from "lucide-react";
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
 import { crawlUrl, scrapeUrl, searchWeb, selectRelevantNotes, shouldUseWeb, type WebContext, type WebSource } from "@/lib/browserbrain";
@@ -75,6 +74,20 @@ function StatusPill({ status, model, stage }: { status: string; model: string; s
 function ModelLoadPanel({ status, stage, progress, model, error, onRetry }: { status: string; stage: string; progress: number; model: string; error: string; onRetry: () => void }) { const demo = status === "demo"; if (status !== "loading" && status !== "error" && !demo) return null; return <div className={`model-load-panel ${status === "error" ? "is-error" : demo ? "is-demo" : ""}`} role="status" aria-live="polite"><div className="model-load-icon">{status === "loading" ? <Loader2 className="spin" size={18} /> : demo ? <Globe2 size={18} /> : <RotateCcw size={18} />}</div><div className="model-load-copy"><strong>{status === "loading" ? "Preparing private intelligence" : demo ? "Local model unavailable — research tools remain open" : "The local model needs another try"}</strong><span>{status === "loading" ? stage : demo ? "This browser session could not initialize a local model. You can still search public sources in the browser, or retry on a device with a modern WASM/WebGPU runtime." : error || "The browser could not start a local model."}</span>{status === "loading" && <div className="model-progress"><span style={{ width: `${Math.max(4, progress)}%` }} /></div>}<small>{status === "loading" ? `${progress}% · ${model.replace("-q4f16_1-MLC", "")}` : demo ? "Demo mode is web-only; no server inference is used." : "No prompt or data leaves the browser when local mode is active."}</small></div>{(status === "error" || demo) && <button onClick={onRetry}>Retry</button>}</div>; }
 function SourceCard({ source }: { source: WebSource }) { return <a className="source-card" href={source.url} target="_blank" rel="noreferrer"><div className="source-card-top"><span className={`source-kind ${source.kind}`}>{source.kind}</span><ExternalLink size={13} /></div><strong>{source.title}</strong><span>{source.snippet}</span></a>; }
 function MessageActions({ content, onRetry }: { content: string; onRetry: () => void }) { const [copied, setCopied] = useState(false); const copy = async () => { await navigator.clipboard?.writeText(content); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }; return <div className="message-actions"><button onClick={copy}>{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}</button><button onClick={onRetry}><RotateCcw size={14} /> Retry</button></div>; }
+function AssistantContent({ content }: { content: string }) {
+  const blocks = content.split(/\n{2,}/).filter(Boolean);
+  return <div className="assistant-content">{(blocks.length ? blocks : [content]).map((block, blockIndex) => {
+    const lines = block.split("\n");
+    const first = lines[0]?.trim() || "";
+    const isCode = first.startsWith("```");
+    if (isCode) {
+      const closing = lines.at(-1)?.trim() === "```";
+      const code = lines.slice(1, closing ? -1 : undefined).join("\n");
+      return <pre className="assistant-code" key={`code-${blockIndex}`}><code>{code}</code></pre>;
+    }
+    return <p key={`paragraph-${blockIndex}`}>{lines.map((line, lineIndex) => <Fragment key={`${blockIndex}-${lineIndex}`}>{line}{lineIndex < lines.length - 1 && <br />}</Fragment>)}</p>;
+  })}</div>;
+}
 
 export default function Home() {
   const [sessions, setSessions] = useState<Session[]>(() => { try { return JSON.parse(localStorage.getItem("browserbrain-sessions") || "[]"); } catch { return []; } });
@@ -107,9 +120,9 @@ export default function Home() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const saveSession = (nextMessages: Message[]) => setSessions((old) => [{ id: sessionId, title: nextMessages[0]?.content.slice(0, 42) || "New conversation", messages: nextMessages, updatedAt: Date.now() }, ...old.filter((item) => item.id !== sessionId)].slice(0, 8));
-  useEffect(() => localStorage.setItem("browserbrain-sessions", JSON.stringify(sessions)), [sessions]);
-  useEffect(() => localStorage.setItem("browserbrain-notes", JSON.stringify(notes)), [notes]);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, status]);
+  useEffect(() => { localStorage.setItem("browserbrain-sessions", JSON.stringify(sessions)); }, [sessions]);
+  useEffect(() => { localStorage.setItem("browserbrain-notes", JSON.stringify(notes)); }, [notes]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, status]);
   const loadModel = async () => {
     const attempt = loadAttemptRef.current + 1;
     loadAttemptRef.current = attempt;
@@ -204,7 +217,7 @@ export default function Home() {
   };
   const retry = (index: number) => { const priorUser = [...messages.slice(0, index)].reverse().find((message) => message.role === "user"); if (!priorUser) return; setMessages(messages.slice(0, index)); window.setTimeout(() => answer(priorUser.content), 30); };
 
-  const renderMessage = (message: Message, index: number) => <article className={`chat-message ${message.role}`} key={message.id}>{message.role === "assistant" && <div className="assistant-avatar"><img src={BRAND_MARK} alt="" /></div>}<div className="message-column"><div className="message-meta">{message.role === "user" ? "You" : "BrowserBrain"}<span className="message-time">{message.role === "assistant" && message.sources?.length ? "· sourced context" : ""}</span></div><div className={`message-copy ${message.content ? "" : "is-streaming"}`}>{message.content ? <Streamdown>{message.content}</Streamdown> : <span className="typing-dots"><i /><i /><i /></span>}</div>{message.role === "assistant" && message.content && !message.content.startsWith("I couldn't") && <MessageActions content={message.content} onRetry={() => retry(index)} />}</div></article>;
+  const renderMessage = (message: Message, index: number) => <article className={`chat-message ${message.role}`} key={message.id}>{message.role === "assistant" && <div className="assistant-avatar"><img src={BRAND_MARK} alt="" /></div>}<div className="message-column"><div className="message-meta">{message.role === "user" ? "You" : "BrowserBrain"}<span className="message-time">{message.role === "assistant" && message.sources?.length ? "· sourced context" : ""}</span></div><div className={`message-copy ${message.content ? "" : "is-streaming"}`}>{message.content ? <AssistantContent content={message.content} /> : <span className="typing-dots"><i /><i /><i /></span>}</div>{message.role === "assistant" && message.content && !message.content.startsWith("I couldn't") && <MessageActions content={message.content} onRetry={() => retry(index)} />}</div></article>;
 
   return <div className="app-shell">
     <aside className={`left-rail ${sidebarOpen ? "is-open" : ""}`}><div className="rail-top"><Brand /><button className="mobile-close" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div><button className="new-chat" onClick={createNewChat}><MessageSquarePlus size={17} /><span>New conversation</span><kbd>⌘ K</kbd></button><div className="rail-label">Library</div><nav className="session-list">{sessions.length ? sessions.map((session) => <button className={`session-item ${session.id === sessionId ? "is-active" : ""}`} key={session.id} onClick={() => loadSession(session)}><span className="session-dot" /><span>{session.title}</span></button>) : <p className="empty-library">Your recent conversations will appear here.</p>}</nav><div className="rail-spacer" /><div className="rail-note"><Sparkles size={15} /><span>Runs in your browser.<br />Your prompts stay on-device.</span></div><a className="repo-link" href={REPO_URL} target="_blank" rel="noreferrer"><Github size={16} /> Open project repo <ExternalLink size={13} /></a></aside>
