@@ -13,3 +13,7 @@
 - [ ] Rewrite only task-created commits if attribution is incorrect.
 - [ ] Confirm whether a force push is required before changing the remote.
 - [ ] Verify the corrected author identity on GitHub after the push.
+- [ ] Inspect the Express version, catch-all route behavior, and production startup logs.
+- [ ] Replace the incompatible catch-all route if needed.
+- [ ] Run build and production server smoke tests.
+- [ ] Save and push the server fix under the user's Git identity.
