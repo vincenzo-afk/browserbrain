@@ -18,9 +18,15 @@ async function startServer() {
 
   app.use(express.static(staticPath));
 
-  // Handle client-side routing - serve index.html for all routes
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(staticPath, "index.html"));
+  // Handle client-side routing without a wildcard path pattern.
+  // Express 4 and Express 5 parse wildcard route syntax differently; a
+  // terminal middleware works with both and still lets static files resolve first.
+  const indexFile = path.join(staticPath, "index.html");
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    res.sendFile(indexFile, (error) => {
+      if (error) next(error);
+    });
   });
 
   const port = process.env.PORT || 3000;
