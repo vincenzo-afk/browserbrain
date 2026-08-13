@@ -1,0 +1,6 @@
+# BrowserBrain style reminder: index the public app, keep implementation-only paths out of search.
+User-agent: *
+Allow: /
+Disallow: /__manus__/
+
+Sitemap: https://browserbrain.vercel.app/sitemap.xml
