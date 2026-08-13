@@ -4,31 +4,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { ArrowUp, BookOpen, BrainCircuit, Check, CircleCheck, Clipboard, Compass, Copy, ExternalLink, FileText, Github, Globe2, Link2, Loader2, Menu, MessageSquarePlus, PanelLeft, RotateCcw, Search, Settings2, Sparkles, StopCircle, Waypoints, X } from "lucide-react";
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
+import { env as transformersEnv, pipeline } from "@xenova/transformers";
 import { crawlUrl, scrapeUrl, searchWeb, selectRelevantNotes, shouldUseWeb, type WebContext, type WebSource } from "@/lib/browserbrain";
 
-const loadWebLLM = () => (new Function("return import('https://esm.run/@mlc-ai/web-llm')")() as Promise<any>);
-const loadTransformers = () => (new Function("return import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2')")() as Promise<any>);
-
 async function createWasmFallback() {
-  const transformers: any = await loadTransformers();
-  transformers.env.allowLocalModels = false;
-  transformers.env.allowRemoteModels = true;
-  transformers.env.remoteHost = "https://huggingface.co/";
-  transformers.env.useBrowserCache = true;
-  const generator = await transformers.pipeline("text-generation", "Xenova/SmolLM2-360M-Instruct", { device: "wasm" });
+  transformersEnv.allowLocalModels = false;
+  transformersEnv.allowRemoteModels = true;
+  transformersEnv.remoteHost = "https://huggingface.co/";
+  transformersEnv.remotePathTemplate = "{model}/resolve/{revision}/";
+  transformersEnv.useBrowserCache = true;
+  const generator = await pipeline("text-generation", "Xenova/SmolLM2-360M-Instruct", { device: "wasm" } as any);
   return {
     chat: { completions: { create: async ({ messages, max_tokens, temperature }: any) => {
       const prompt = messages.map((message: any) => `${message.role}: ${message.content}`).join("\n") + "\nassistant:";
-      const output = await generator(prompt, { max_new_tokens: max_tokens, temperature, do_sample: temperature > 0.1, return_full_text: false });
-      const text = output?.[0]?.generated_text || "";
+      const output: any = await generator(prompt, { max_new_tokens: max_tokens, temperature, do_sample: temperature > 0.1, return_full_text: false });
+      const text = String((Array.isArray(output) ? output[0]?.generated_text : output?.generated_text) || "").trim();
       return { async *[Symbol.asyncIterator]() { for (const part of text.match(/.{1,24}(?:\s|$)/g) || [text]) yield { choices: [{ delta: { content: part } }] }; } };
     } } },
+    interruptGenerate: async () => undefined,
   };
 }
 
 const REPO_URL = "https://github.com/vincenzo-afk/browserbrain";
 // Replace with the user's final logo asset when provided; sizing is intentionally logo-safe.
-const BRAND_MARK = "/manus-storage/browserbrain-mark_4e8fa8c7.png";
+const BRAND_MARK = "/manus-storage/browserbrain-assistant-mark_1a811767.png";
 const HERO_ART = "/manus-storage/browserbrain-local-intelligence_59604953.png";
 const RESEARCH_ART = "/manus-storage/browserbrain-research-lens_353fafd7.png";
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
@@ -59,7 +59,7 @@ const STARTERS = [
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) { return <div className={`brand-mark ${compact ? "is-compact" : ""}`}><img src={BRAND_MARK} alt="" /><span className="brand-wordmark">Browser<span>Brain</span></span></div>; }
-function StatusPill({ status, model }: { status: string; model: string }) { const ready = status === "ready"; const loading = status === "loading"; return <div className={`status-pill ${ready ? "is-ready" : loading ? "is-loading" : "is-idle"}`}><span className="status-dot" /><span>{loading ? "Loading local model" : ready ? "Local model ready" : status === "unsupported" ? "WebGPU unavailable" : "Local only"}</span><span className="status-divider" /><span className="status-model">{model.replace("-q4f16_1-MLC", "")}</span></div>; }
+function StatusPill({ status, model }: { status: string; model: string }) { const ready = status === "ready"; const loading = status === "loading"; const failed = status === "error"; return <div className={`status-pill ${ready ? "is-ready" : loading ? "is-loading" : failed ? "is-error" : "is-idle"}`}><span className="status-dot" /><span>{loading ? "Loading local model" : ready ? "Local model ready" : failed ? "Model load failed" : status === "unsupported" ? "WebGPU unavailable" : "Local only"}</span><span className="status-divider" /><span className="status-model">{model.replace("-q4f16_1-MLC", "")}</span></div>; }
 function SourceCard({ source }: { source: WebSource }) { return <a className="source-card" href={source.url} target="_blank" rel="noreferrer"><div className="source-card-top"><span className={`source-kind ${source.kind}`}>{source.kind}</span><ExternalLink size={13} /></div><strong>{source.title}</strong><span>{source.snippet}</span></a>; }
 function MessageActions({ content, onRetry }: { content: string; onRetry: () => void }) { const [copied, setCopied] = useState(false); const copy = async () => { await navigator.clipboard?.writeText(content); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }; return <div className="message-actions"><button onClick={copy}>{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}</button><button onClick={onRetry}><RotateCcw size={14} /> Retry</button></div>; }
 
@@ -69,6 +69,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle");
+  const [loadError, setLoadError] = useState("");
   const [model, setModel] = useState(MODEL_ID);
   const [progress, setProgress] = useState(0);
   const [webEnabled, setWebEnabled] = useState(true);
@@ -98,27 +99,29 @@ export default function Home() {
     let active = true;
     const load = async () => {
       setStatus("loading");
+      setLoadError("");
+      setProgress(0);
       try {
         if (!(navigator as any).gpu) throw new Error("WebGPU unavailable");
-        const webllm: any = await loadWebLLM();
-        const loaded = await webllm.CreateMLCEngine(MODEL_ID, { initProgressCallback: (report: any) => active && setProgress(Math.round((report.progress || 0) * 100)), logLevel: "SILENT" });
+        const loaded = await CreateMLCEngine(MODEL_ID, { initProgressCallback: (report: any) => active && setProgress(Math.round((report.progress || 0) * 100)), logLevel: "SILENT" });
         if (active) { setEngine(loaded); setStatus("ready"); }
-      } catch {
+      } catch (primaryError: any) {
         try {
           if ((navigator as any).gpu) {
-            const webllm: any = await loadWebLLM();
-            const loaded = await webllm.CreateMLCEngine(FALLBACK_MODEL_ID, { logLevel: "SILENT" });
+            const loaded = await CreateMLCEngine(FALLBACK_MODEL_ID, { logLevel: "SILENT" });
             if (active) { setEngine(loaded); setModel(FALLBACK_MODEL_ID); setStatus("ready"); }
           } else throw new Error("Use WASM fallback");
-        } catch {
+        } catch (gpuError: any) {
           try { const loaded = await createWasmFallback(); if (active) { setEngine(loaded); setModel("SmolLM2-360M · WASM"); setStatus("ready"); } }
-          catch { if (active) setStatus("error"); }
+          catch (fallbackError: any) { if (active) { setStatus("error"); setLoadError([primaryError?.message, gpuError?.message, fallbackError?.message].filter(Boolean).join(" → ") || "The browser could not initialize a local model."); } }
         }
       }
     };
     load();
     return () => { active = false; };
   }, []);
+
+  const retryModel = () => window.location.reload();
 
   const createNewChat = () => { if (messages.length) saveSession(messages); setSessionId(newId()); setMessages([]); setWebContext(null); setInput(""); setSidebarOpen(false); inputRef.current?.focus(); };
   const loadSession = (session: Session) => { setSessionId(session.id); setMessages(session.messages); setSidebarOpen(false); setWebContext(null); };
@@ -160,9 +163,9 @@ export default function Home() {
 
   return <div className="app-shell">
     <aside className={`left-rail ${sidebarOpen ? "is-open" : ""}`}><div className="rail-top"><Brand /><button className="mobile-close" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div><button className="new-chat" onClick={createNewChat}><MessageSquarePlus size={17} /><span>New conversation</span><kbd>⌘ K</kbd></button><div className="rail-label">Library</div><nav className="session-list">{sessions.length ? sessions.map((session) => <button className={`session-item ${session.id === sessionId ? "is-active" : ""}`} key={session.id} onClick={() => loadSession(session)}><span className="session-dot" /><span>{session.title}</span></button>) : <p className="empty-library">Your recent conversations will appear here.</p>}</nav><div className="rail-spacer" /><div className="rail-note"><Sparkles size={15} /><span>Runs in your browser.<br />Your prompts stay on-device.</span></div><a className="repo-link" href={REPO_URL} target="_blank" rel="noreferrer"><Github size={16} /> Open project repo <ExternalLink size={13} /></a></aside>
-    <main className="workspace"><header className="workspace-header"><div className="header-mobile"><button className="icon-button" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><Brand compact /></div><div className="header-left"><div className="eyebrow"><span className="signal-mark" /> Private research workspace</div><h1>Untitled conversation</h1></div><div className="header-actions"><StatusPill status={status} model={model} /><button className={`icon-button ${contextOpen ? "is-active" : ""}`} onClick={() => setContextOpen((open) => !open)} aria-label="Toggle context panel"><PanelLeft size={18} /></button><button className="icon-button" onClick={() => setSettingsOpen((open) => !open)} aria-label="Open settings"><Settings2 size={18} /></button></div></header>
+    <main className="workspace"><header className="workspace-header"><div className="header-mobile"><button className="icon-button" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><Brand compact /></div><div className="header-left"><div className="eyebrow"><span className="signal-mark" /> Private research workspace</div><h1>Untitled conversation</h1></div><div className="header-actions"><StatusPill status={status} model={model} />{status === "error" && <button className="model-retry" onClick={retryModel}><RotateCcw size={13} /> Retry model</button>}<button className={`icon-button ${contextOpen ? "is-active" : ""}`} onClick={() => setContextOpen((open) => !open)} aria-label="Toggle context panel"><PanelLeft size={18} /></button><button className="icon-button" onClick={() => setSettingsOpen((open) => !open)} aria-label="Open settings"><Settings2 size={18} /></button></div></header>
       <section className="chat-scroll" aria-live="polite">{!messages.length ? <div className="welcome-stage"><div className="welcome-copy"><div className="welcome-kicker"><span className="signal-mark" /> On-device intelligence</div><h2>Ask a local model.<br /><em>Bring your own context.</em></h2><p>BrowserBrain pairs a small open model with optional web research and private notes. Nothing leaves this tab unless you choose to fetch a source.</p><div className="welcome-facts"><span><CircleCheck size={13} /> local by default</span><span><Globe2 size={13} /> web when useful</span><span><Clipboard size={13} /> notes stay private</span></div><div className="starter-grid">{STARTERS.map(({ label, icon: Icon, prompt }) => <button className="starter-card" key={label} onClick={() => answer(prompt)} disabled={status !== "ready"}><Icon size={17} /><span>{label}</span><ArrowUp size={14} /></button>)}</div></div><img className="welcome-art" src={HERO_ART} alt="Abstract browser window containing a local intelligence spark" /></div> : <div className="messages-column">{messages.map(renderMessage)}<div ref={endRef} /></div>}</section>
-      <div className="composer-wrap"><div className="composer"><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); answer(); } }} placeholder={status === "ready" ? "Ask BrowserBrain anything…" : status === "loading" ? `Loading local model… ${progress}%` : status === "unsupported" ? "WebGPU is not available in this browser" : "Local model unavailable — refresh to retry"} rows={1} disabled={status !== "ready"} /><div className="composer-footer"><div className="composer-tools"><button className={`tool-toggle ${webEnabled ? "is-on" : ""}`} onClick={() => setWebEnabled((enabled) => !enabled)}><Globe2 size={15} /> Web <span>{webEnabled ? "on" : "off"}</span></button><button className={`tool-toggle ${crawlEnabled ? "is-on" : ""}`} onClick={() => setCrawlEnabled((enabled) => !enabled)}><Waypoints size={15} /> Crawl <span>{crawlEnabled ? "on" : "off"}</span></button><span className="composer-hint">Shift + Enter for a new line</span></div><button className={`send-button ${status === "generating" ? "is-stop" : ""}`} onClick={() => status === "generating" ? (abortRef.current = true) : answer()} disabled={status !== "ready" && status !== "generating"}>{status === "generating" ? <StopCircle size={17} /> : <ArrowUp size={17} />}</button></div></div><div className="composer-caption"><span><CircleCheck size={13} /> Local by default</span><span className="caption-separator">·</span><span>Free web tools are optional and best-effort</span></div></div>
+      <div className="composer-wrap">{status === "error" && <div className="model-error" role="status"><strong>Local model could not start.</strong><span>{loadError || "Refresh once to retry the browser runtime."}</span><button onClick={retryModel}>Try again</button></div>}<div className="composer"><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); answer(); } }} placeholder={status === "ready" ? "Ask BrowserBrain anything…" : status === "loading" ? `Loading local model… ${progress}%` : status === "unsupported" ? "WebGPU is not available in this browser" : "Model unavailable — use Retry model"} rows={1} disabled={status !== "ready"} /><div className="composer-footer"><div className="composer-tools"><button className={`tool-toggle ${webEnabled ? "is-on" : ""}`} onClick={() => setWebEnabled((enabled) => !enabled)}><Globe2 size={15} /> Web <span>{webEnabled ? "on" : "off"}</span></button><button className={`tool-toggle ${crawlEnabled ? "is-on" : ""}`} onClick={() => setCrawlEnabled((enabled) => !enabled)}><Waypoints size={15} /> Crawl <span>{crawlEnabled ? "on" : "off"}</span></button><span className="composer-hint">Shift + Enter for a new line</span></div><button className={`send-button ${status === "generating" ? "is-stop" : ""}`} onClick={() => status === "generating" ? (abortRef.current = true) : answer()} disabled={status !== "ready" && status !== "generating"}>{status === "generating" ? <StopCircle size={17} /> : <ArrowUp size={17} />}</button></div></div><div className="composer-caption"><span><CircleCheck size={13} /> Local by default</span><span className="caption-separator">·</span><span>Free web tools are optional and best-effort</span></div></div>
     </main>
     <aside className={`context-rail ${contextOpen ? "is-open" : ""}`}><div className="context-header"><div><div className="eyebrow">Context desk</div><h2>Bring evidence in</h2></div><button className="icon-button context-close" onClick={() => setContextOpen(false)}><X size={17} /></button></div><div className="context-tabs"><button className={toolPanel === "search" ? "is-active" : ""} onClick={() => setToolPanel("search")}><Search size={15} /> Search</button><button className={toolPanel === "url" ? "is-active" : ""} onClick={() => setToolPanel("url")}><Link2 size={15} /> Read URL</button><button className={toolPanel === "notes" ? "is-active" : ""} onClick={() => setToolPanel("notes")}><Clipboard size={15} /> Notes</button></div>
       {toolPanel === "search" && <div className="tool-panel"><label>Search the open web</label><div className="tool-input"><Search size={15} /><input value={toolUrl} onChange={(event) => setToolUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") runTool("search"); }} placeholder="A question or topic" /><button onClick={() => runTool("search")} disabled={toolBusy}>{toolBusy ? <Loader2 className="spin" size={15} /> : <ArrowUp size={15} />}</button></div><p className="tool-help">DuckDuckGo and Wikipedia summaries, with no API key. Turn on Crawl to follow a few same-site links.</p><label className="check-row"><input type="checkbox" checked={crawlEnabled} onChange={(event) => setCrawlEnabled(event.target.checked)} /><span>Follow related pages when possible</span></label></div>}

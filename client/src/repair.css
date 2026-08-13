@@ -1,0 +1,13 @@
+/* BrowserBrain repair layer: failures should be legible and recoverable, not silent. */
+.status-pill.is-error { color: var(--rose); border-color: #e5c8c1; background: #fff8f6; }
+.model-retry { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #e5c8c1; border-radius: 999px; background: #fff8f6; color: var(--rose); padding: 7px 9px; font-size: 10px; font-weight: 700; }
+.model-retry:hover { border-color: var(--rose); background: #fff1ed; }
+.model-error { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; padding: 10px 12px; border: 1px solid #e5c8c1; border-radius: 8px; background: #fff8f6; color: var(--rose); font-size: 10px; line-height: 1.45; }
+.model-error strong { white-space: nowrap; }
+.model-error span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.model-error button { margin-left: auto; flex: none; border: 0; border-radius: 5px; background: var(--rose); color: white; padding: 6px 9px; font-size: 10px; font-weight: 700; }
+@media (max-width: 640px) {
+  .model-error { align-items: flex-start; flex-wrap: wrap; }
+  .model-error span { flex-basis: 100%; white-space: normal; }
+  .model-error button { margin-left: 0; }
+}

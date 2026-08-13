@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./repair.css";
 
 :root { --paper:#f7f4ee; --paper-deep:#eee9df; --surface:#fffdf9; --ink:#24211f; --muted:#80796f; --faint:#a69d91; --line:#e5dfd4; --line-dark:#d4cbbd; --amber:#d99128; --amber-soft:#f3e1bf; --sage:#4f765e; --rose:#9d584c; --ease-out:cubic-bezier(.23,1,.32,1); font-family:'Manrope',sans-serif; color:var(--ink); background:var(--paper); font-synthesis:none; }
 * { box-sizing:border-box; }
