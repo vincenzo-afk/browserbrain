@@ -1,29 +1,41 @@
 // BrowserBrain style reminder: warm editorial workspace, graphite ink, ivory paper, signal amber.
 // Keep the reading column calm; let sources, tool activity, and local status carry the technical detail.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { ArrowUp, BookOpen, BrainCircuit, Check, CircleCheck, Clipboard, Compass, Copy, ExternalLink, FileText, Github, Globe2, Link2, Loader2, Menu, MessageSquarePlus, PanelLeft, RotateCcw, Search, Settings2, Sparkles, StopCircle, Waypoints, X } from "lucide-react";
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
-import { env as transformersEnv, pipeline } from "@xenova/transformers";
 import { crawlUrl, scrapeUrl, searchWeb, selectRelevantNotes, shouldUseWeb, type WebContext, type WebSource } from "@/lib/browserbrain";
 
-async function createWasmFallback() {
-  transformersEnv.allowLocalModels = false;
-  transformersEnv.allowRemoteModels = true;
-  transformersEnv.remoteHost = "https://huggingface.co/";
-  transformersEnv.remotePathTemplate = "{model}/resolve/{revision}/";
-  transformersEnv.useBrowserCache = true;
-  const generator = await pipeline("text-generation", "Xenova/SmolLM2-360M-Instruct", { device: "wasm" } as any);
-  return {
+type WorkerMessage = { type: string; requestId: number; progress?: number; label?: string; text?: string; message?: string };
+
+function createWorkerFallback(onProgress: (progress: number, label: string) => void) {
+  const worker = new Worker(new URL("../workers/model.worker.ts", import.meta.url), { type: "module" });
+  let nextRequestId = Date.now();
+  const request = (payload: Record<string, unknown>, timeoutMs = 360_000) => new Promise<WorkerMessage>((resolve, reject) => {
+    const requestId = ++nextRequestId;
+    const timer = window.setTimeout(() => reject(new Error("The browser model took too long to initialize. The worker was stopped so you can retry.")), timeoutMs);
+    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+      const message = event.data;
+      if (message.requestId !== requestId) return;
+      if (message.type === "progress") { onProgress(message.progress || 0, message.label || "Loading the local model…"); return; }
+      window.clearTimeout(timer);
+      if (message.type === "error" || message.type === "generation-error") reject(new Error(message.message || "The browser model failed."));
+      else resolve(message);
+    };
+    worker.onerror = (event) => { window.clearTimeout(timer); reject(new Error(event.message || "The browser model worker stopped unexpectedly.")); };
+    worker.postMessage({ ...payload, requestId });
+  });
+  return request({ type: "load" }).then((ready) => ({
+    label: ready.label || "CPU / WASM fallback",
     chat: { completions: { create: async ({ messages, max_tokens, temperature }: any) => {
-      const prompt = messages.map((message: any) => `${message.role}: ${message.content}`).join("\n") + "\nassistant:";
-      const output: any = await generator(prompt, { max_new_tokens: max_tokens, temperature, do_sample: temperature > 0.1, return_full_text: false });
-      const text = String((Array.isArray(output) ? output[0]?.generated_text : output?.generated_text) || "").trim();
+      const generated = await request({ type: "generate", messages, maxTokens: max_tokens, temperature }, 120_000);
+      const text = generated.text || "";
       return { async *[Symbol.asyncIterator]() { for (const part of text.match(/.{1,24}(?:\s|$)/g) || [text]) yield { choices: [{ delta: { content: part } }] }; } };
     } } },
-    interruptGenerate: async () => undefined,
-  };
+    interruptGenerate: async () => { worker.postMessage({ type: "stop", requestId: ++nextRequestId }); },
+    dispose: () => worker.terminate(),
+  }));
 }
 
 const REPO_URL = "https://github.com/vincenzo-afk/browserbrain";
@@ -31,8 +43,8 @@ const REPO_URL = "https://github.com/vincenzo-afk/browserbrain";
 const BRAND_MARK = "/manus-storage/browserbrain-assistant-mark_1a811767.png";
 const HERO_ART = "/manus-storage/browserbrain-local-intelligence_59604953.png";
 const RESEARCH_ART = "/manus-storage/browserbrain-research-lens_353fafd7.png";
-const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
-const FALLBACK_MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+const FALLBACK_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; sources?: WebSource[]; stopped?: boolean };
 type Session = { id: string; title: string; messages: Message[]; updatedAt: number };
@@ -59,7 +71,8 @@ const STARTERS = [
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) { return <div className={`brand-mark ${compact ? "is-compact" : ""}`}><img src={BRAND_MARK} alt="" /><span className="brand-wordmark">Browser<span>Brain</span></span></div>; }
-function StatusPill({ status, model }: { status: string; model: string }) { const ready = status === "ready"; const loading = status === "loading"; const failed = status === "error"; return <div className={`status-pill ${ready ? "is-ready" : loading ? "is-loading" : failed ? "is-error" : "is-idle"}`}><span className="status-dot" /><span>{loading ? "Loading local model" : ready ? "Local model ready" : failed ? "Model load failed" : status === "unsupported" ? "WebGPU unavailable" : "Local only"}</span><span className="status-divider" /><span className="status-model">{model.replace("-q4f16_1-MLC", "")}</span></div>; }
+function StatusPill({ status, model, stage }: { status: string; model: string; stage: string }) { const ready = status === "ready"; const loading = status === "loading"; const generating = status === "generating"; const failed = status === "error"; const demo = status === "demo"; return <div className={`status-pill ${ready ? "is-ready" : loading || generating ? "is-loading" : failed ? "is-error" : demo ? "is-demo" : "is-idle"}`}><span className="status-dot" /><span>{loading ? stage || "Loading local model" : generating ? "Generating locally" : ready ? "Local model ready" : failed ? "Model load failed" : demo ? "Research demo mode" : status === "unsupported" ? "WebGPU unavailable" : "Local only"}</span><span className="status-divider" /><span className="status-model">{model.replace("-q4f16_1-MLC", "")}</span></div>; }
+function ModelLoadPanel({ status, stage, progress, model, error, onRetry }: { status: string; stage: string; progress: number; model: string; error: string; onRetry: () => void }) { const demo = status === "demo"; if (status !== "loading" && status !== "error" && !demo) return null; return <div className={`model-load-panel ${status === "error" ? "is-error" : demo ? "is-demo" : ""}`} role="status" aria-live="polite"><div className="model-load-icon">{status === "loading" ? <Loader2 className="spin" size={18} /> : demo ? <Globe2 size={18} /> : <RotateCcw size={18} />}</div><div className="model-load-copy"><strong>{status === "loading" ? "Preparing private intelligence" : demo ? "Local model unavailable — research tools remain open" : "The local model needs another try"}</strong><span>{status === "loading" ? stage : demo ? "This browser session could not initialize a local model. You can still search public sources in the browser, or retry on a device with a modern WASM/WebGPU runtime." : error || "The browser could not start a local model."}</span>{status === "loading" && <div className="model-progress"><span style={{ width: `${Math.max(4, progress)}%` }} /></div>}<small>{status === "loading" ? `${progress}% · ${model.replace("-q4f16_1-MLC", "")}` : demo ? "Demo mode is web-only; no server inference is used." : "No prompt or data leaves the browser when local mode is active."}</small></div>{(status === "error" || demo) && <button onClick={onRetry}>Retry</button>}</div>; }
 function SourceCard({ source }: { source: WebSource }) { return <a className="source-card" href={source.url} target="_blank" rel="noreferrer"><div className="source-card-top"><span className={`source-kind ${source.kind}`}>{source.kind}</span><ExternalLink size={13} /></div><strong>{source.title}</strong><span>{source.snippet}</span></a>; }
 function MessageActions({ content, onRetry }: { content: string; onRetry: () => void }) { const [copied, setCopied] = useState(false); const copy = async () => { await navigator.clipboard?.writeText(content); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }; return <div className="message-actions"><button onClick={copy}>{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}</button><button onClick={onRetry}><RotateCcw size={14} /> Retry</button></div>; }
 
@@ -70,7 +83,8 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle");
   const [loadError, setLoadError] = useState("");
-  const [model, setModel] = useState(MODEL_ID);
+  const [loadStage, setLoadStage] = useState("Preparing browser runtime…");
+  const [model, setModel] = useState("Selecting a local runtime");
   const [progress, setProgress] = useState(0);
   const [webEnabled, setWebEnabled] = useState(true);
   const [crawlEnabled, setCrawlEnabled] = useState(false);
@@ -88,6 +102,7 @@ export default function Home() {
   const [tokenLimit, setTokenLimit] = useState(768);
   const [engine, setEngine] = useState<any>(null);
   const abortRef = useRef(false);
+  const loadAttemptRef = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -95,33 +110,63 @@ export default function Home() {
   useEffect(() => localStorage.setItem("browserbrain-sessions", JSON.stringify(sessions)), [sessions]);
   useEffect(() => localStorage.setItem("browserbrain-notes", JSON.stringify(notes)), [notes]);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, status]);
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      setStatus("loading");
-      setLoadError("");
-      setProgress(0);
-      try {
-        if (!(navigator as any).gpu) throw new Error("WebGPU unavailable");
-        const loaded = await CreateMLCEngine(MODEL_ID, { initProgressCallback: (report: any) => active && setProgress(Math.round((report.progress || 0) * 100)), logLevel: "SILENT" });
-        if (active) { setEngine(loaded); setStatus("ready"); }
-      } catch (primaryError: any) {
-        try {
-          if ((navigator as any).gpu) {
-            const loaded = await CreateMLCEngine(FALLBACK_MODEL_ID, { logLevel: "SILENT" });
-            if (active) { setEngine(loaded); setModel(FALLBACK_MODEL_ID); setStatus("ready"); }
-          } else throw new Error("Use WASM fallback");
-        } catch (gpuError: any) {
-          try { const loaded = await createWasmFallback(); if (active) { setEngine(loaded); setModel("SmolLM2-360M · WASM"); setStatus("ready"); } }
-          catch (fallbackError: any) { if (active) { setStatus("error"); setLoadError([primaryError?.message, gpuError?.message, fallbackError?.message].filter(Boolean).join(" → ") || "The browser could not initialize a local model."); } }
-        }
+  const loadModel = async () => {
+    const attempt = loadAttemptRef.current + 1;
+    loadAttemptRef.current = attempt;
+    const active = () => loadAttemptRef.current === attempt;
+    setEngine(null);
+    setStatus("loading");
+    setLoadError("");
+    setProgress(0);
+    setLoadStage("Checking browser acceleration…");
+    const errors: string[] = [];
+    try {
+      const gpu = (navigator as any).gpu;
+      const adapter = gpu?.requestAdapter ? await gpu.requestAdapter() : null;
+      if (adapter) {
+        setLoadStage("Downloading the private WebGPU model…");
+        const loaded = await CreateMLCEngine(MODEL_ID, {
+          initProgressCallback: (report: any) => { if (!active()) return; setProgress(Math.round((report?.progress || 0) * 100)); setLoadStage(report?.text || "Preparing the local model…"); },
+          logLevel: "SILENT",
+        });
+        if (!active()) return;
+        setEngine(loaded); setModel(MODEL_ID); setProgress(100); setLoadStage("Ready for a private answer"); setStatus("ready"); return;
       }
-    };
-    load();
-    return () => { active = false; };
-  }, []);
+      errors.push("This browser did not expose a usable WebGPU adapter.");
+    } catch (error: any) {
+      errors.push(`WebGPU: ${error?.message || "initialization failed"}`);
+    }
+    try {
+      const gpu = (navigator as any).gpu;
+      const adapter = gpu?.requestAdapter ? await gpu.requestAdapter() : null;
+      if (adapter) {
+        setLoadStage("Trying the smaller WebGPU model…");
+        const loaded = await CreateMLCEngine(FALLBACK_MODEL_ID, {
+          initProgressCallback: (report: any) => { if (!active()) return; setProgress(Math.round((report?.progress || 0) * 100)); setLoadStage(report?.text || "Preparing the smaller model…"); },
+          logLevel: "SILENT",
+        });
+        if (!active()) return;
+        setEngine(loaded); setModel(FALLBACK_MODEL_ID); setProgress(100); setLoadStage("Ready with the smaller local model"); setStatus("ready"); return;
+      }
+    } catch (error: any) {
+      errors.push(`Smaller WebGPU model: ${error?.message || "initialization failed"}`);
+    }
+    try {
+      setLoadStage("Loading the CPU-compatible model…");
+      setProgress(2);
+      const loaded = await createWorkerFallback((value, label) => { if (!active()) return; setProgress(Math.max(2, Math.min(99, value))); setLoadStage(label); });
+      if (!active()) return;
+      setEngine(loaded); setModel(loaded.label || "CPU / WASM fallback"); setProgress(100); setLoadStage(`Ready with ${loaded.label || "the CPU model"}`); setStatus("ready");
+    } catch (error: any) {
+      if (!active()) return;
+      errors.push(`CPU fallback: ${error?.message || "initialization failed"}`);
+      setStatus("demo"); setLoadStage("Research tools are ready"); setLoadError(errors.join("\n") || "The browser could not initialize a local model.");
+    }
+  };
 
-  const retryModel = () => window.location.reload();
+  useEffect(() => { void loadModel(); return () => { loadAttemptRef.current += 1; }; }, []);
+
+  const retryModel = () => { void loadModel(); };
 
   const createNewChat = () => { if (messages.length) saveSession(messages); setSessionId(newId()); setMessages([]); setWebContext(null); setInput(""); setSidebarOpen(false); inputRef.current?.focus(); };
   const loadSession = (session: Session) => { setSessionId(session.id); setMessages(session.messages); setSidebarOpen(false); setWebContext(null); };
@@ -163,8 +208,8 @@ export default function Home() {
 
   return <div className="app-shell">
     <aside className={`left-rail ${sidebarOpen ? "is-open" : ""}`}><div className="rail-top"><Brand /><button className="mobile-close" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div><button className="new-chat" onClick={createNewChat}><MessageSquarePlus size={17} /><span>New conversation</span><kbd>⌘ K</kbd></button><div className="rail-label">Library</div><nav className="session-list">{sessions.length ? sessions.map((session) => <button className={`session-item ${session.id === sessionId ? "is-active" : ""}`} key={session.id} onClick={() => loadSession(session)}><span className="session-dot" /><span>{session.title}</span></button>) : <p className="empty-library">Your recent conversations will appear here.</p>}</nav><div className="rail-spacer" /><div className="rail-note"><Sparkles size={15} /><span>Runs in your browser.<br />Your prompts stay on-device.</span></div><a className="repo-link" href={REPO_URL} target="_blank" rel="noreferrer"><Github size={16} /> Open project repo <ExternalLink size={13} /></a></aside>
-    <main className="workspace"><header className="workspace-header"><div className="header-mobile"><button className="icon-button" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><Brand compact /></div><div className="header-left"><div className="eyebrow"><span className="signal-mark" /> Private research workspace</div><h1>Untitled conversation</h1></div><div className="header-actions"><StatusPill status={status} model={model} />{status === "error" && <button className="model-retry" onClick={retryModel}><RotateCcw size={13} /> Retry model</button>}<button className={`icon-button ${contextOpen ? "is-active" : ""}`} onClick={() => setContextOpen((open) => !open)} aria-label="Toggle context panel"><PanelLeft size={18} /></button><button className="icon-button" onClick={() => setSettingsOpen((open) => !open)} aria-label="Open settings"><Settings2 size={18} /></button></div></header>
-      <section className="chat-scroll" aria-live="polite">{!messages.length ? <div className="welcome-stage"><div className="welcome-copy"><div className="welcome-kicker"><span className="signal-mark" /> On-device intelligence</div><h2>Ask a local model.<br /><em>Bring your own context.</em></h2><p>BrowserBrain pairs a small open model with optional web research and private notes. Nothing leaves this tab unless you choose to fetch a source.</p><div className="welcome-facts"><span><CircleCheck size={13} /> local by default</span><span><Globe2 size={13} /> web when useful</span><span><Clipboard size={13} /> notes stay private</span></div><div className="starter-grid">{STARTERS.map(({ label, icon: Icon, prompt }) => <button className="starter-card" key={label} onClick={() => answer(prompt)} disabled={status !== "ready"}><Icon size={17} /><span>{label}</span><ArrowUp size={14} /></button>)}</div></div><img className="welcome-art" src={HERO_ART} alt="Abstract browser window containing a local intelligence spark" /></div> : <div className="messages-column">{messages.map(renderMessage)}<div ref={endRef} /></div>}</section>
+    <main className="workspace"><header className="workspace-header"><div className="header-mobile"><button className="icon-button" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button><Brand compact /></div><div className="header-left"><div className="eyebrow"><span className="signal-mark" /> Private research workspace</div><h1>Untitled conversation</h1></div><div className="header-actions"><StatusPill status={status} model={model} stage={loadStage} />{status === "error" && <button className="model-retry" onClick={retryModel}><RotateCcw size={13} /> Retry model</button>}<button className={`icon-button ${contextOpen ? "is-active" : ""}`} onClick={() => setContextOpen((open) => !open)} aria-label="Toggle context panel"><PanelLeft size={18} /></button><button className="icon-button" onClick={() => setSettingsOpen((open) => !open)} aria-label="Open settings"><Settings2 size={18} /></button></div></header>
+      <section className="chat-scroll" aria-live="polite">{!messages.length ? <div className="welcome-stage"><div className="welcome-copy"><div className="welcome-kicker"><span className="signal-mark" /> On-device intelligence</div><h2>Ask a local model.<br /><em>Bring your own context.</em></h2><p>BrowserBrain pairs a small open model with optional web research and private notes. Nothing leaves this tab unless you choose to fetch a source.</p><div className="welcome-facts"><span><CircleCheck size={13} /> local by default</span><span><Globe2 size={13} /> web when useful</span><span><Clipboard size={13} /> notes stay private</span></div><ModelLoadPanel status={status} stage={loadStage} progress={progress} model={model} error={loadError} onRetry={retryModel} /><div className="starter-grid">{STARTERS.map(({ label, icon: Icon, prompt }) => <button className="starter-card" key={label} onClick={() => answer(prompt)} disabled={status !== "ready"}><Icon size={17} /><span>{label}</span><ArrowUp size={14} /></button>)}</div></div><img className="welcome-art" src={HERO_ART} alt="Abstract browser window containing a local intelligence spark" /></div> : <div className="messages-column">{messages.map(renderMessage)}<div ref={endRef} /></div>}</section>
       <div className="composer-wrap">{status === "error" && <div className="model-error" role="status"><strong>Local model could not start.</strong><span>{loadError || "Refresh once to retry the browser runtime."}</span><button onClick={retryModel}>Try again</button></div>}<div className="composer"><textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); answer(); } }} placeholder={status === "ready" ? "Ask BrowserBrain anything…" : status === "loading" ? `Loading local model… ${progress}%` : status === "unsupported" ? "WebGPU is not available in this browser" : "Model unavailable — use Retry model"} rows={1} disabled={status !== "ready"} /><div className="composer-footer"><div className="composer-tools"><button className={`tool-toggle ${webEnabled ? "is-on" : ""}`} onClick={() => setWebEnabled((enabled) => !enabled)}><Globe2 size={15} /> Web <span>{webEnabled ? "on" : "off"}</span></button><button className={`tool-toggle ${crawlEnabled ? "is-on" : ""}`} onClick={() => setCrawlEnabled((enabled) => !enabled)}><Waypoints size={15} /> Crawl <span>{crawlEnabled ? "on" : "off"}</span></button><span className="composer-hint">Shift + Enter for a new line</span></div><button className={`send-button ${status === "generating" ? "is-stop" : ""}`} onClick={() => status === "generating" ? (abortRef.current = true) : answer()} disabled={status !== "ready" && status !== "generating"}>{status === "generating" ? <StopCircle size={17} /> : <ArrowUp size={17} />}</button></div></div><div className="composer-caption"><span><CircleCheck size={13} /> Local by default</span><span className="caption-separator">·</span><span>Free web tools are optional and best-effort</span></div></div>
     </main>
     <aside className={`context-rail ${contextOpen ? "is-open" : ""}`}><div className="context-header"><div><div className="eyebrow">Context desk</div><h2>Bring evidence in</h2></div><button className="icon-button context-close" onClick={() => setContextOpen(false)}><X size={17} /></button></div><div className="context-tabs"><button className={toolPanel === "search" ? "is-active" : ""} onClick={() => setToolPanel("search")}><Search size={15} /> Search</button><button className={toolPanel === "url" ? "is-active" : ""} onClick={() => setToolPanel("url")}><Link2 size={15} /> Read URL</button><button className={toolPanel === "notes" ? "is-active" : ""} onClick={() => setToolPanel("notes")}><Clipboard size={15} /> Notes</button></div>

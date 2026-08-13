@@ -1,12 +1,12 @@
 # BrowserBrain repair checklist
 
-- [ ] Inspect browser console and network logs for the no-answer failure.
+- [x] Inspect browser console and network logs for the no-answer failure.
 - [ ] Confirm the generated model runtime is actually reachable from the deployed browser app.
-- [ ] Replace fragile remote model loading with a reliable client-side loading strategy and explicit retry/error states.
-- [ ] Make the generation adapter compatible with both WebLLM streams and the WASM fallback.
-- [ ] Tighten the prompt and add deterministic fallback behavior when a model cannot initialize.
-- [ ] Generate and integrate an original friendly assistant mark suitable for BrowserBrain.
-- [ ] Verify prompt submission, streamed answer rendering, web context, mobile layout, and build checks.
+- [x] Replace fragile remote model loading with a reliable client-side loading strategy and explicit retry/error states.
+- [x] Make the generation adapter compatible with both WebLLM streams and the WASM fallback.
+- [x] Tighten the prompt and add deterministic fallback behavior when a model cannot initialize.
+- [x] Generate and integrate an original friendly assistant mark suitable for BrowserBrain.
+- [ ] Verify prompt submission and streamed answer rendering in a browser with the local model ready; web context, mobile layout, and build checks are implemented and build-verified.
 - [ ] Save a checkpoint and push the repair to GitHub.
 - [ ] Inspect the current commit author, committer, and GitHub CLI identity.
 - [ ] Configure Git with the user's verified GitHub name and email.
@@ -15,5 +15,12 @@
 - [ ] Verify the corrected author identity on GitHub after the push.
 - [ ] Inspect the Express version, catch-all route behavior, and production startup logs.
 - [ ] Replace the incompatible catch-all route if needed.
-- [ ] Run build and production server smoke tests.
+- [x] Run build and production server smoke tests.
 - [ ] Save and push the server fix under the user's Git identity.
+- [ ] Capture the current browser console and network failures for model initialization.
+- [ ] Verify model asset URLs, runtime imports, and browser capability detection.
+- [x] Repair WebGPU and WASM model loading with a real answer-generation smoke path in the generation adapter; the managed preview remains network-bound during FLAN-T5 decoder download.
+- [x] Add animated initialization progress, retry, cancel, and clear error states.
+- [x] Refine composer, message bubbles, typography, and logo placement toward a Claude-like experience without copying its mark.
+- [ ] Test at least one actual prompt-to-answer flow and mobile layout.
+- [ ] Save the verified checkpoint and push the repair under the user's Git identity.
