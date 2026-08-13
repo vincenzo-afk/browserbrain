@@ -17,7 +17,7 @@
 
 **Quick links:** [Repository](https://github.com/vincenzo-afk/browserbrain) · [Issues](https://github.com/vincenzo-afk/browserbrain/issues) · [Feature requests](https://github.com/vincenzo-afk/browserbrain/issues/new)
 
-> **Live demo:** No permanent public URL is assigned in this repository yet. Publish the project, then replace this note and the canonical SEO host in `client/index.html`, `client/public/robots.txt`, and `client/public/sitemap.xml`.
+> **Live demo:** [browserbrain.vercel.app](https://browserbrain.vercel.app/) is the current production domain. Vercel is configured explicitly to publish the active Vite output from `dist/public` rather than the bundled Node server entrypoint.
 
 ## Table of contents
 
@@ -248,7 +248,6 @@ The root-level `app.js`, `style.css`, and `index.html` are retained legacy Vanta
 
 ### Planned
 
-- Add a public deployment URL and replace the temporary canonical metadata note.
 - Add an automated CI workflow for type-checking and production builds.
 - Add a small browser smoke-test suite covering model status, context tools, and mobile navigation.
 - Allow the user to supply the final logo asset through one documented asset constant.
@@ -291,11 +290,15 @@ NODE_ENV=production PORT=3000 pnpm run start
 
 The production command serves `dist/public` and falls back to `index.html` for client-side routes. The app itself does not require a database or server inference process. If a host only supports static files, serve `dist/public` and configure its rewrite rule so unknown routes resolve to `index.html`.
 
+### Vercel
+
+The repository includes [`vercel.json`](./vercel.json), which runs `pnpm run build` and sets `dist/public` as the deployment output. This is important because the build also emits `dist/index.js` for the generic Node host; Vercel must publish the frontend directory rather than expose that server bundle at the root URL. Git pushes to `main` trigger the linked production deployment when the Vercel project integration is active.
+
 ### Deployment checklist
 
 | Check | Action |
 | --- | --- |
-| Canonical URL | Replace the temporary host note in `client/index.html`, `client/public/robots.txt`, and `client/public/sitemap.xml`. |
+| Canonical URL | Keep `browserbrain.vercel.app` aligned across the live domain, robots policy, sitemap, and runtime metadata. |
 | HTTPS | Serve the app over HTTPS so browser storage, workers, and WebGPU behave consistently. |
 | Headers | Keep `Content-Type` correct for JavaScript modules, the manifest, robots, and sitemap. |
 | Model cache | Tell users that the first local-model load downloads and caches model artifacts. |
