@@ -40,3 +40,12 @@
 - [x] Update README, SEO, deployment, and troubleshooting documentation to match the applied behavior.
 - [x] Run type-check, production build, and focused browser verification for the changed flows, including a live `What is 2 + 2?` test returning `4`.
 - [ ] Commit and push the completed changes under `vincenzo-afk <itsmebk2007@gmail.com>`.
+
+## Follow-up request: production polish and repository metadata
+
+- [x] Inspect the active GitHub repository metadata, collaborators, visibility, topics, default branch, existing rules, workflows, and contributor infrastructure.
+- [x] Regenerate BrowserBrain's README solely from verified project facts and correct any stale project-name, runtime, dependency, or deployment details.
+- [x] Add only stack-appropriate contributor, security, issue, pull-request, and CI files that BrowserBrain can support.
+- [x] Prepare relevant, current GitHub topic recommendations and safe default-branch rule recommendations for user approval before access-affecting changes.
+- [x] Verify whether any unexpected collaborator or agent identity has repository access and report findings before removal; no direct collaborator or agent account was present.
+- [ ] Commit and push the approved repository metadata, local polish, and validation updates as `vincenzo-afk <itsmebk2007@gmail.com>`.

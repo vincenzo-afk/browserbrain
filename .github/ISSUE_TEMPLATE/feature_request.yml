@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a focused improvement to BrowserBrain.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What browser-first research or local-AI workflow is currently difficult?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-facing outcome rather than an implementation only.
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy and browser boundary
+      description: Explain whether the request would require a network service, credentials, or data leaving the browser.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

@@ -12,10 +12,12 @@
 
 [![License](https://img.shields.io/github/license/vincenzo-afk/browserbrain)](./LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/vincenzo-afk/browserbrain)](https://github.com/vincenzo-afk/browserbrain/commits/main)
+[![CI](https://github.com/vincenzo-afk/browserbrain/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vincenzo-afk/browserbrain/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/package-json/v/vincenzo-afk/browserbrain)](./package.json)
 [![Repository size](https://img.shields.io/github/repo-size/vincenzo-afk/browserbrain)](https://github.com/vincenzo-afk/browserbrain)
 [![Platform](https://img.shields.io/badge/platform-modern%20web%20browsers-3f2f1c)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
 
-**Quick links:** [Repository](https://github.com/vincenzo-afk/browserbrain) · [Issues](https://github.com/vincenzo-afk/browserbrain/issues) · [Feature requests](https://github.com/vincenzo-afk/browserbrain/issues/new)
+**Quick links:** [Live demo](https://browserbrain.vercel.app/) · [Repository](https://github.com/vincenzo-afk/browserbrain) · [Report a bug](https://github.com/vincenzo-afk/browserbrain/issues/new/choose) · [Request a feature](https://github.com/vincenzo-afk/browserbrain/issues/new/choose) · [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
 
 > **Live demo:** [browserbrain.vercel.app](https://browserbrain.vercel.app/) is the current production domain. Vercel is configured explicitly to publish the active Vite output from `dist/public` rather than the bundled Node server entrypoint.
 
@@ -34,6 +36,7 @@
 - [Testing](#testing)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
+- [Code of conduct](#code-of-conduct)
 - [Security](#security)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
@@ -275,7 +278,7 @@ pnpm run build
 
 For a manual browser check, start the dev server and verify the following sequence: the page renders without a console error, the model status transitions from loading to ready or demo mode, Web search returns source cards, URL reading shows a readable excerpt or a clear failure message, notes persist after refresh, the repository link opens GitHub, and the mobile sidebar/context drawer remains reachable at a narrow viewport.
 
-There is currently no committed unit-test or coverage suite. The repository therefore does not claim a coverage percentage or a CI badge. A future CI workflow should run `pnpm run check` and `pnpm run build` on every pull request.
+There is currently no committed unit-test or coverage suite, so the repository does not claim a coverage percentage. The [CI workflow](./.github/workflows/ci.yml) runs `pnpm run check` and `pnpm run build` for pushes and pull requests targeting the default branch.
 
 ## Deployment
 
@@ -309,7 +312,7 @@ The repository includes [`vercel.json`](./vercel.json), which runs `pnpm run bui
 
 ## Contributing
 
-Start from a feature branch named with a short scope, for example `fix/model-loading` or `docs/readme`. Keep changes narrow, preserve the browser-only inference requirement, and update the relevant notes when model artifacts or browser compatibility change.
+Read the complete [contribution guide](./CONTRIBUTING.md) before opening a pull request. Start from a feature branch named with a short scope, for example `fix/model-loading` or `docs/readme`. Keep changes narrow, preserve the browser-only inference requirement, and update the relevant notes when model artifacts or browser compatibility change.
 
 Before submitting a pull request:
 
@@ -321,9 +324,13 @@ pnpm run build
 
 Use concise conventional commit messages such as `fix: handle wasm model timeout` or `docs: clarify privacy boundaries`. Pull requests should explain the user-facing change, list validation performed, and call out any browser-specific behavior. Do not commit model binaries, credentials, browser logs, build output, or private notes.
 
+## Code of conduct
+
+BrowserBrain follows the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). Report unacceptable behavior through the repository owner's [GitHub profile](https://github.com/vincenzo-afk), rather than in a public issue.
+
 ## Security
 
-Please do not report sensitive vulnerabilities in a public issue. Use the repository's private security reporting mechanism when it is enabled, or contact the repository owner through the GitHub profile: [vincenzo-afk](https://github.com/vincenzo-afk).
+Please do not report sensitive vulnerabilities in a public issue. Follow the private reporting guidance in [SECURITY.md](./SECURITY.md).
 
 Security practices currently include client-side URL scheme validation, bounded fetch timeouts, same-host filtering for crawl links, no committed environment files, and explicit separation between local notes and optional web context. The public relay and external search services are third-party dependencies; treat all retrieved web content as untrusted text.
 

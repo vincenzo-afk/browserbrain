@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible BrowserBrain defect.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include credentials, private notes, or sensitive URLs. For vulnerabilities, follow SECURITY.md instead."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Open BrowserBrain
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "Example: Chrome 140"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and operating system
+      placeholder: "Example: Windows 11 desktop"
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Local runtime state
+      options:
+        - WebGPU model
+        - CPU/WASM fallback
+        - Research demo mode
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add redacted console output or screenshots if useful.
