@@ -77,7 +77,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "pnpm": "^10.34.5",
     "postcss": "^8.5.23",
     "prettier": "^3.6.2",
@@ -87,7 +87,7 @@
     "typescript": "5.6.3",
     "vite": "^7.3.5",
     "vite-plugin-manus-runtime": "^0.0.58",
-    "vitest": "^3.2.6"
+    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af"
 }
