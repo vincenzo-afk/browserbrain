@@ -46,7 +46,7 @@
 
 BrowserBrain is a React and TypeScript web application designed around a simple boundary: **the language model runs in the browser, while web context is fetched only when the user enables it or asks for information that is likely to be time-sensitive**. The interface combines a calm conversation surface with a context desk for search, URL reading, same-site crawling, and private local notes.
 
-The project is intended for research, drafting, explanation, comparison, and lightweight technical investigation. It does not require a hosted inference API or an application database. The repository link, SEO metadata, browser cache, loading progress, retry path, and explicit research-demo state are all part of the product rather than afterthoughts.
+The project is intended for research, drafting, explanation, comparison and lightweight technical investigation. It does not require a hosted inference API or an application database. The repository link, SEO metadata, browser cache, loading progress, retry path, and explicit research-demo state are all part of the product rather than afterthoughts.
 
 ### Current capabilities
 
